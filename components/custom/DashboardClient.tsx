@@ -396,7 +396,7 @@ export function DashboardClient() {
             <TabsTrigger
               key={tab}
               value={tab}
-              className="w-full md:w-auto !h-auto rounded-xl md:rounded-full px-2 py-3 md:px-6 md:py-2.5 bg-slate-900/80 md:bg-transparent border border-white/10 md:border-transparent text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm tracking-widest uppercase transition-all data-[state=active]:bg-blue-600/20 data-[state=active]:border-blue-500/50 data-[state=active]:text-white shadow-lg md:shadow-none cursor-pointer whitespace-nowrap"
+              className="w-full md:w-auto !h-auto rounded-xl md:rounded-full px-2 py-3 md:px-6 md:py-2.5 bg-slate-900/80 md:bg-transparent border border-white/10 md:border-transparent text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm tracking-widest uppercase transition-all hover:bg-white/5 hover:text-slate-200 data-[state=active]:bg-blue-600/20 data-[state=active]:border-blue-500/50 data-[state=active]:text-white shadow-lg md:shadow-none cursor-pointer whitespace-nowrap"
             >
               {tabLabels[tab]}
             </TabsTrigger>

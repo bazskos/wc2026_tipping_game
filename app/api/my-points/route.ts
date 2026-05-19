@@ -51,7 +51,8 @@ export async function GET() {
           kickoff_at,
           status,
           home_score,
-          away_score
+          away_score,
+          group_name
         )
       `,
       )

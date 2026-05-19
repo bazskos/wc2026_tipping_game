@@ -6,7 +6,7 @@ import { Navbar } from "@/components/custom/NavBar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "World Cup 2026 Tipping",
+  title: "WC 2026 | Predigod",
   description: "Predict the matches, beat your friends, lead the table!",
   openGraph: {
     title: "World Cup 2026 Tipping",
