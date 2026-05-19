@@ -481,14 +481,13 @@ export function DashboardClient() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16">
               {calculatedGroups.map((group, index) => (
                 <motion.div key={index} variants={itemVariants}>
-                  <GroupBoard group={group} />
+                  <GroupBoard group={group as any} />
                 </motion.div>
               ))}
             </div>
           </motion.div>
         </TabsContent>
 
-        {/* 3. JAVÍTÁS: Kapott egy kis extra felső margót (mt-8) mobilon, hogy a Bracket kaphasson levegőt */}
         <TabsContent value="r32" className="w-full mt-8 md:mt-0">
           <KnockoutBracket
             matches={matches}
