@@ -64,7 +64,10 @@ export default function AdminPage() {
   const [adminData, setAdminData] = useState<any>(null);
 
   const [scores, setScores] = useState<
-    Record<string, { home: string; away: string }>
+    Record<
+      string,
+      { home: string; away: string; homePenalty?: string; awayPenalty?: string }
+    >
   >({});
 
   const [isFlagHelperOpen, setIsFlagHelperOpen] = useState(false);
@@ -186,6 +189,8 @@ export default function AdminPage() {
     matchId: string,
     homeScore: string,
     awayScore: string,
+    homePenalty?: string,
+    awayPenalty?: string,
   ) => {
     if (homeScore === "" || awayScore === "") {
       setLog("❌ Kérlek adj meg pontos végeredményt mindkét csapathoz!");
@@ -205,6 +210,8 @@ export default function AdminPage() {
           matchId,
           homeScore: parseInt(homeScore),
           awayScore: parseInt(awayScore),
+          homePenalty: homePenalty,
+          awayPenalty: awayPenalty,
         }),
       });
 
@@ -467,6 +474,20 @@ export default function AdminPage() {
                     : match.away_score !== null
                       ? match.away_score.toString()
                       : "";
+                const currentHomePenalty =
+                  scores[match.id]?.homePenalty !== undefined
+                    ? scores[match.id].homePenalty
+                    : match.home_penalty !== null &&
+                        match.home_penalty !== undefined
+                      ? match.home_penalty.toString()
+                      : "";
+                const currentAwayPenalty =
+                  scores[match.id]?.awayPenalty !== undefined
+                    ? scores[match.id].awayPenalty
+                    : match.away_penalty !== null &&
+                        match.away_penalty !== undefined
+                      ? match.away_penalty.toString()
+                      : "";
 
                 const isFinished = match.status === "finished";
 
@@ -502,43 +523,103 @@ export default function AdminPage() {
                       <div
                         className={`flex items-center gap-3 bg-white/5 p-2 rounded-xl border ${isFinished ? "border-green-500/20" : "border-white/10"}`}
                       >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={currentHome}
-                            onChange={(e) =>
-                              setScores({
-                                ...scores,
-                                [match.id]: {
-                                  ...scores[match.id],
-                                  home: e.target.value,
-                                  away: currentAway,
-                                },
-                              })
-                            }
-                            className="w-12 h-10 bg-black/50 border border-white/10 rounded-lg text-center text-white font-bold focus:border-red-500 outline-none"
-                            placeholder="0"
-                          />
-                          <span className="text-slate-500">:</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={currentAway}
-                            onChange={(e) =>
-                              setScores({
-                                ...scores,
-                                [match.id]: {
-                                  ...scores[match.id],
-                                  home: currentHome,
-                                  away: e.target.value,
-                                },
-                              })
-                            }
-                            className="w-12 h-10 bg-black/50 border border-white/10 rounded-lg text-center text-white font-bold focus:border-red-500 outline-none"
-                            placeholder="0"
-                          />
+                        <div className="flex flex-col gap-2">
+                          {/* Rendes Játékidő */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={currentHome}
+                              onChange={(e) =>
+                                setScores({
+                                  ...scores,
+                                  [match.id]: {
+                                    ...scores[match.id],
+                                    home: e.target.value,
+                                    away: currentAway,
+                                  },
+                                })
+                              }
+                              className="w-12 h-10 bg-black/50 border border-white/10 rounded-lg text-center text-white font-bold focus:border-red-500 outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-slate-500">:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={currentAway}
+                              onChange={(e) =>
+                                setScores({
+                                  ...scores,
+                                  [match.id]: {
+                                    ...scores[match.id],
+                                    home: currentHome,
+                                    away: e.target.value,
+                                  },
+                                })
+                              }
+                              className="w-12 h-10 bg-black/50 border border-white/10 rounded-lg text-center text-white font-bold focus:border-red-500 outline-none"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          {match.stage !== "Group Stage" && (
+                            <div className="flex items-center gap-2 justify-center">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                Pen:
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentHomePenalty}
+                                onChange={(e) =>
+                                  setScores({
+                                    ...scores,
+                                    [match.id]: {
+                                      ...scores[match.id],
+                                      homePenalty: e.target.value,
+                                    },
+                                  })
+                                }
+                                className="w-8 h-6 bg-yellow-500/10 border border-yellow-500/20 rounded text-center text-yellow-500 font-bold text-xs focus:border-yellow-500 outline-none"
+                                placeholder="-"
+                              />
+                              <span className="text-slate-600 text-xs">-</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentAwayPenalty}
+                                onChange={(e) =>
+                                  setScores({
+                                    ...scores,
+                                    [match.id]: {
+                                      ...scores[match.id],
+                                      awayPenalty: e.target.value,
+                                    },
+                                  })
+                                }
+                                className="w-8 h-6 bg-yellow-500/10 border border-yellow-500/20 rounded text-center text-yellow-500 font-bold text-xs focus:border-yellow-500 outline-none"
+                                placeholder="-"
+                              />
+                            </div>
+                          )}
                         </div>
+
+                        <button
+                          onClick={() =>
+                            saveMatchResult(
+                              match.id,
+                              currentHome,
+                              currentAway,
+                              currentHomePenalty,
+                              currentAwayPenalty,
+                            )
+                          }
+                          disabled={isLoading}
+                          className={`${isFinished ? "bg-green-600 hover:bg-green-500" : "bg-red-600 hover:bg-red-500"} text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-lg cursor-pointer h-full`}
+                        >
+                          {isFinished ? "Frissítés" : "Save Result"}
+                        </button>
                         <button
                           onClick={() =>
                             saveMatchResult(match.id, currentHome, currentAway)

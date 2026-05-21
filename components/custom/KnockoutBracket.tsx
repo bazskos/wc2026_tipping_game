@@ -13,7 +13,7 @@ export function KnockoutBracket({
   stageNames,
   title,
 }: KnockoutBracketProps) {
-  const stageMatches = matches.filter((m) => stageNames.includes(m.group));
+  const stageMatches = matches.filter((m) => stageNames.includes(m.stage));
 
   return (
     <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 md:pt-0">
