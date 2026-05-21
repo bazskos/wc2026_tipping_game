@@ -9,19 +9,24 @@ const commonFlags = [
   { name: "Ausztrália", code: "au" },
   { name: "Ausztria", code: "at" },
   { name: "Belgium", code: "be" },
+  { name: "Bosznia-Hercegovina", code: "ba" },
   { name: "Brazília", code: "br" },
   { name: "Chile", code: "cl" },
-  { name: "Costa Rica", code: "cr" },
+  { name: "Curaçao", code: "cw" },
   { name: "Csehország", code: "cz" },
   { name: "Dánia", code: "dk" },
+  { name: "Dél-Afrika", code: "za" },
   { name: "Dél-Korea", code: "kr" },
   { name: "Ecuador", code: "ec" },
   { name: "Egyiptom", code: "eg" },
+  { name: "Elefántcsontpart", code: "ci" },
   { name: "Franciaország", code: "fr" },
   { name: "Ghána", code: "gh" },
+  { name: "Haiti", code: "ht" },
   { name: "Hollandia", code: "nl" },
   { name: "Horvátország", code: "hr" },
   { name: "Irán", code: "ir" },
+  { name: "Irak", code: "iq" },
   { name: "Jamaica", code: "jm" },
   { name: "Japán", code: "jp" },
   { name: "Kamerun", code: "cm" },
@@ -29,7 +34,6 @@ const commonFlags = [
   { name: "Katar", code: "qa" },
   { name: "Kolumbia", code: "co" },
   { name: "Lengyelország", code: "pl" },
-  { name: "Magyarország", code: "hu" },
   { name: "Marokkó", code: "ma" },
   { name: "Mexikó", code: "mx" },
   { name: "Németország", code: "de" },
@@ -37,9 +41,9 @@ const commonFlags = [
   { name: "Norvégia", code: "no" },
   { name: "Olaszország", code: "it" },
   { name: "Panama", code: "pa" },
+  { name: "Paraguay", code: "py" },
   { name: "Peru", code: "pe" },
   { name: "Portugália", code: "pt" },
-  { name: "Románia", code: "ro" },
   { name: "Skócia", code: "gb-sct" },
   { name: "Spanyolország", code: "es" },
   { name: "Svájc", code: "ch" },
@@ -48,10 +52,9 @@ const commonFlags = [
   { name: "Szenegál", code: "sn" },
   { name: "Szerbia", code: "rs" },
   { name: "Törökország", code: "tr" },
-  { name: "Ukrajna", code: "ua" },
   { name: "Uruguay", code: "uy" },
   { name: "USA", code: "us" },
-  { name: "Wales", code: "gb-wls" },
+  { name: "Kongói DK", code: "cd" },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export default function AdminPage() {
@@ -380,7 +383,7 @@ export default function AdminPage() {
               <option value="Round of 16">Round of 16</option>
               <option value="Quarter-finals">Quarter-finals</option>
               <option value="Semi-finals">Semi-finals</option>
-              <option value="Third place">Third place</option>
+              <option value="3rd Place Final">3rd Place Final</option>
               <option value="Final">Final</option>
             </select>
           </div>
