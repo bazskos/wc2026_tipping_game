@@ -166,6 +166,7 @@ export default function AdminPage() {
           awayCode: "",
           kickoffAt: "",
           groupName: "Group A",
+          stage: "Group Stage",
         });
         fetchGodModeData();
       } else {
