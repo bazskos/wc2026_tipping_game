@@ -1,183 +1,362 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Target, Flame, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function MyPointsClientPage() {
-  const supabase = createClient();
+type Prediction = {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore?: number;
+  awayScore?: number;
+  predictedHome: number;
+  predictedAway: number;
+  points: number;
+  stage?: string;
+  group?: string;
+  finished?: boolean;
+};
+
+type UserData = {
+  id: string;
+  username: string;
+  avatar?: string;
+  points: number;
+  streak: number;
+  perfect: number;
+  predictions: Prediction[];
+};
+
+export default function PointsPage() {
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [allPredictions, setAllPredictions] = useState<any[]>([]);
 
   useEffect(() => {
-    async function loadData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      setCurrentUserId(user.id);
-      setSelectedUserId(user.id);
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/my-points");
+        const data = await res.json();
 
-      const { data: pData } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("points", { ascending: false });
-      if (pData) setProfiles(pData);
+        const usersData = data.users || [];
 
-      const { data: predData } = await supabase.from("predictions").select(`
-          id, user_id, home_score, away_score, points,
-          matches (id, home_team, away_team, kickoff_at, status, stage, home_score, away_score, status_short, home_score_aet, away_score_aet, home_penalty, away_penalty, group_name)
-        `);
+        const enriched = usersData.map((u: UserData) => ({
+          ...u,
+          perfect: u.predictions?.filter((p) => p.points === 3).length || 0,
+        }));
 
-      if (predData) {
-        setAllPredictions(
-          predData.sort(
-            (a: any, b: any) =>
-              new Date(a.matches.kickoff_at).getTime() -
-              new Date(b.matches.kickoff_at).getTime(),
-          ),
-        );
+        setUsers(enriched);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }
-    loadData();
-  }, [supabase]);
+    };
 
-  const selectedProfile = profiles.find((p) => p.id === selectedUserId);
-  const filteredHistory = allPredictions.filter(
-    (item) => item.user_id === selectedUserId,
-  );
+    fetchData();
+  }, []);
 
-  const groupedHistory = filteredHistory.reduce((groups: any, item: any) => {
-    const phase =
-      item.matches.stage && item.matches.stage !== "Group Stage"
-        ? item.matches.stage
-        : item.matches.group_name || "Egyéb";
-    if (!groups[phase]) groups[phase] = [];
-    groups[phase].push(item);
-    return groups;
-  }, {});
+  const selectedUser = users[selectedIndex];
 
-  if (loading)
+  const groupedMatches = useMemo(() => {
+    if (!selectedUser?.predictions) return {};
+
+    return selectedUser.predictions.reduce(
+      (acc: Record<string, Prediction[]>, match) => {
+        const key =
+          match.stage === "GROUP"
+            ? `Group ${match.group || "?"}`
+            : match.stage || "Other";
+
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(match);
+
+        return acc;
+      },
+      {},
+    );
+  }, [selectedUser]);
+
+  const nextProfile = () => {
+    setSelectedIndex((prev) => (prev === users.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevProfile = () => {
+    setSelectedIndex((prev) => (prev === 0 ? users.length - 1 : prev - 1));
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        Loading...
+      <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">
+        <div className="animate-pulse text-xl font-bold">Loading points...</div>
       </div>
     );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-24 pb-20">
-      <Link
-        href="/"
-        className="text-slate-400 hover:text-white transition-colors text-sm font-bold mb-8 block"
-      >
-        ← Back to Dashboard
-      </Link>
+    <div className="min-h-screen bg-[#020617] text-white px-4 md:px-8 py-8">
+      <div className="max-w-7xl mx-auto">
+        {/* HEADER */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-black tracking-tight">MY POINTS</h1>
 
-      {/* PROFILE SLIDER */}
-      <div className="mb-10">
-        <h2 className="text-white font-bold text-xl mb-4">Leaderboard</h2>
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-          {profiles.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setSelectedUserId(p.id)}
-              className={`flex-shrink-0 flex items-center gap-3 p-3 rounded-2xl border transition-all ${selectedUserId === p.id ? "bg-blue-600/20 border-blue-500/50" : "bg-slate-900/50 border-white/5"}`}
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border border-white/10">
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.name} />
-                ) : (
-                  <span className="text-xs font-bold text-white">
-                    {p.name.charAt(0)}
-                  </span>
-                )}
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-white">{p.name}</div>
-                <div className="text-xs text-blue-400 font-mono">
-                  {p.points}p
-                </div>
-              </div>
-            </button>
-          ))}
+          <p className="text-white/50 mt-2">World Cup 2026 Prediction Center</p>
         </div>
-      </div>
 
-      {/* STATISTIC */}
-      <div className="grid grid-cols-3 gap-4 mb-10">
-        <div className="bg-slate-900/50 border border-blue-500/20 p-4 rounded-2xl text-center">
-          <div className="text-3xl font-black text-white">
-            {selectedProfile?.points || 0}
-          </div>
-          <div className="text-[10px] uppercase text-blue-400 font-bold">
-            Pont
-          </div>
-        </div>
-        <div className="bg-slate-900/50 border border-green-500/20 p-4 rounded-2xl text-center">
-          <div className="text-3xl font-black text-green-400">
-            {selectedProfile?.perfect_tips || 0}
-          </div>
-          <div className="text-[10px] uppercase text-green-500 font-bold">
-            Perfect
-          </div>
-        </div>
-        <div className="bg-slate-900/50 border border-orange-500/20 p-4 rounded-2xl text-center">
-          <div className="text-3xl font-black text-orange-400">
-            {selectedProfile?.streak || 0}
-          </div>
-          <div className="text-[10px] uppercase text-orange-500 font-bold">
-            Streak
-          </div>
-        </div>
-      </div>
+        {/* PROFILE SLIDER */}
+        <div className="relative mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Players</h2>
 
-      {/* TIPS HISTORY */}
-      {Object.entries(groupedHistory).map(([phase, items]: any) => (
-        <div key={phase} className="mb-8">
-          <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-4 border-b border-white/10 pb-2">
-            {phase}
-          </h3>
-          <div className="space-y-3">
-            {items.map((item: any) => (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                key={item.id}
-                className="bg-slate-900/30 border border-white/5 p-4 rounded-xl flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+            <div className="flex gap-2">
+              <button
+                onClick={prevProfile}
+                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition"
               >
-                <div className="flex flex-col gap-1">
-                  <div className="text-xs text-slate-300 font-bold">
-                    {item.matches.home_team} vs {item.matches.away_team}
+                <ChevronLeft size={18} />
+              </button>
+
+              <button
+                onClick={nextProfile}
+                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
+            {users.map((user, index) => {
+              const active = index === selectedIndex;
+
+              return (
+                <motion.button
+                  key={user.id}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedIndex(index)}
+                  className={`
+                    min-w-[260px]
+                    rounded-3xl
+                    border
+                    p-5
+                    text-left
+                    transition-all
+                    snap-center
+                    backdrop-blur-xl
+                    ${
+                      active
+                        ? "border-blue-500 bg-blue-500/10 shadow-[0_0_40px_rgba(59,130,246,0.25)]"
+                        : "border-white/10 bg-white/[0.03]"
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={user.avatar || "/default-avatar.png"}
+                      alt={user.username}
+                      className="w-16 h-16 rounded-2xl object-cover border border-white/10"
+                    />
+
+                    <div>
+                      <h3 className="font-bold text-lg">{user.username}</h3>
+
+                      <p className="text-white/50 text-sm">
+                        {user.points} total points
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-[10px] text-blue-400">
-                    Tipped: {item.home_score}:{item.away_score}
+
+                  <div className="mt-5 flex justify-between text-sm">
+                    <div>
+                      <p className="text-white/40">Perfect</p>
+                      <p className="font-bold">{user.perfect}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-white/40">Streak</p>
+                      <p className="font-bold">{user.streak}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-white">
-                    {item.matches.home_score ?? "-"} :{" "}
-                    {item.matches.away_score ?? "-"}
-                  </div>
-                  {item.matches.status_short === "AET" && (
-                    <div className="text-[9px] text-blue-400">AET</div>
-                  )}
-                  {item.matches.status_short === "PEN" && (
-                    <div className="text-[9px] text-yellow-500">PEN</div>
-                  )}
-                  <div className="text-xs text-green-500 font-bold">
-                    +{item.points || 0}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.button>
+              );
+            })}
           </div>
         </div>
-      ))}
+
+        {/* STATS */}
+        <AnimatePresence mode="wait">
+          {selectedUser && (
+            <motion.div
+              key={selectedUser.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+                <StatCard
+                  icon={<Trophy size={24} />}
+                  label="Total Points"
+                  value={selectedUser.points}
+                />
+
+                <StatCard
+                  icon={<Target size={24} />}
+                  label="Perfect Tips"
+                  value={selectedUser.perfect}
+                />
+
+                <StatCard
+                  icon={<Flame size={24} />}
+                  label="Current Streak"
+                  value={selectedUser.streak}
+                />
+              </div>
+
+              {/* MATCH HISTORY */}
+              <div>
+                <h2 className="text-2xl font-black mb-6">Match History</h2>
+
+                <div className="space-y-10">
+                  {Object.entries(groupedMatches).map(
+                    ([groupName, matches]) => (
+                      <div key={groupName}>
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+
+                          <h3 className="text-lg font-bold text-white/80">
+                            {groupName}
+                          </h3>
+                        </div>
+
+                        <div className="grid gap-4">
+                          {matches.map((match) => {
+                            const perfect = match.points === 3;
+                            const success = match.points > 0 && !perfect;
+
+                            return (
+                              <motion.div
+                                key={match.id}
+                                whileHover={{ y: -2 }}
+                                className={`
+                                  rounded-3xl
+                                  border
+                                  p-5
+                                  backdrop-blur-xl
+                                  transition-all
+                                  ${
+                                    perfect
+                                      ? "border-green-500/40 bg-green-500/10 shadow-[0_0_25px_rgba(34,197,94,0.15)]"
+                                      : success
+                                        ? "border-blue-500/40 bg-blue-500/10 shadow-[0_0_25px_rgba(59,130,246,0.15)]"
+                                        : "border-red-500/20 bg-red-500/[0.05]"
+                                  }
+                                `}
+                              >
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                  <div>
+                                    <h4 className="font-bold text-lg">
+                                      {match.homeTeam} vs {match.awayTeam}
+                                    </h4>
+
+                                    <p className="text-white/50 text-sm mt-1">
+                                      Tipped: {match.predictedHome}:
+                                      {match.predictedAway}
+                                    </p>
+
+                                    {match.finished && (
+                                      <p className="text-white/50 text-sm">
+                                        Final: {match.homeScore}:
+                                        {match.awayScore}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                      className={`
+                                        px-4 py-2 rounded-2xl font-bold
+                                        ${
+                                          perfect
+                                            ? "bg-green-500/20 text-green-300"
+                                            : success
+                                              ? "bg-blue-500/20 text-blue-300"
+                                              : "bg-red-500/20 text-red-300"
+                                        }
+                                      `}
+                                    >
+                                      +{match.points}
+                                    </div>
+
+                                    {perfect && (
+                                      <div className="text-green-400 text-sm font-semibold">
+                                        PERFECT
+                                      </div>
+                                    )}
+
+                                    {success && (
+                                      <div className="text-blue-400 text-sm font-semibold">
+                                        CORRECT
+                                      </div>
+                                    )}
+
+                                    {match.points === 0 && (
+                                      <div className="text-red-400 text-sm font-semibold">
+                                        MISS
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className="
+        rounded-3xl
+        border
+        border-white/10
+        bg-white/[0.03]
+        p-6
+        backdrop-blur-xl
+        shadow-[0_0_30px_rgba(255,255,255,0.03)]
+      "
+    >
+      <div className="flex items-center justify-between">
+        <div className="text-blue-400">{icon}</div>
+
+        <div className="text-right">
+          <p className="text-white/40 text-sm">{label}</p>
+
+          <h3 className="text-4xl font-black mt-1">{value}</h3>
+        </div>
+      </div>
+    </motion.div>
   );
 }
