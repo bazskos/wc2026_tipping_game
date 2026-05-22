@@ -12,7 +12,16 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { matchId, homeScore, awayScore, homePenalty, awayPenalty } = body;
+    const {
+      matchId,
+      homeScore,
+      awayScore,
+      homeScoreAet,
+      awayScoreAet,
+      homePenalty,
+      awayPenalty,
+      statusShort,
+    } = body;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -22,9 +31,22 @@ export async function POST(req: Request) {
       home_score: homeScore,
       away_score: awayScore,
       status: "finished",
+      status_short: statusShort || "FT",
     };
 
-    // Csak akkor mentjük a büntetőket, ha beírtak valamit (nem undefined/null)
+    if (
+      homeScoreAet !== undefined &&
+      awayScoreAet !== undefined &&
+      homeScoreAet !== "" &&
+      awayScoreAet !== ""
+    ) {
+      updateData.home_score_aet = parseInt(homeScoreAet);
+      updateData.away_score_aet = parseInt(awayScoreAet);
+    } else {
+      updateData.home_score_aet = null;
+      updateData.away_score_aet = null;
+    }
+
     if (
       homePenalty !== undefined &&
       awayPenalty !== undefined &&
@@ -43,9 +65,7 @@ export async function POST(req: Request) {
       .update(updateData)
       .eq("id", matchId)
       .select();
-
     if (error) throw error;
-
     return NextResponse.json({ success: true, updatedMatch: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -90,6 +90,8 @@ export function DashboardClient() {
               statusShort: m.status_short,
               homeScore: m.home_score,
               awayScore: m.away_score,
+              homeScoreAet: m.home_score_aet,
+              awayScoreAet: m.away_score_aet,
               kickoffAt: m.kickoff_at,
               homePenalty: m.home_penalty,
               awayPenalty: m.away_penalty,
