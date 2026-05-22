@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 
 const commonFlags = [
@@ -102,8 +103,19 @@ export default function AdminPage() {
   };
 
   const handleAddNewMatch = async () => {
-    if (!newMatch.homeTeam || !newMatch.awayTeam || !newMatch.kickoffAt) return;
+    if (!newMatch.homeTeam || !newMatch.awayTeam || !newMatch.kickoffAt) {
+      setLog("❌ Töltsd ki a mezőket!");
+      return;
+    }
     setIsLoading(true);
+
+    // IDŐZÓNA JAVÍTÁS:
+    const localDate = new Date(newMatch.kickoffAt);
+    const tzOffset = localDate.getTimezoneOffset() * 60000;
+    const localIsoString = new Date(localDate.getTime() - tzOffset)
+      .toISOString()
+      .slice(0, -1);
+
     try {
       const response = await fetch("/api/admin/add-match", {
         method: "POST",
@@ -111,7 +123,7 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${secret}`,
         },
-        body: JSON.stringify(newMatch),
+        body: JSON.stringify({ ...newMatch, kickoffAt: localIsoString }),
       });
       if (response.ok) {
         setLog(`✅ Meccs hozzáadva!`);
@@ -177,7 +189,7 @@ export default function AdminPage() {
         />
         <button
           onClick={fetchGodModeData}
-          className="w-full bg-red-600 text-white font-bold py-4 rounded-xl"
+          className="w-full bg-red-600 text-white font-bold py-4 rounded-xl cursor-pointer hover:bg-red-500"
         >
           Unlock Dashboard
         </button>
@@ -193,14 +205,38 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 max-w-5xl mx-auto font-sans text-left">
       <div className="bg-slate-900/80 backdrop-blur-xl border border-red-500/30 rounded-3xl p-8 shadow-2xl">
-        {/* ADD NEW MATCH */}
+        {/* ÚJ MECCS HOZZÁADÁSA */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
-          <h2 className="text-white uppercase mb-4 font-bold flex justify-between">
-            ➕ Új Meccs{" "}
-            <button onClick={() => setIsFlagHelperOpen(!isFlagHelperOpen)}>
-              🏳️ Súgó
+          <h2 className="text-white uppercase mb-4 font-bold flex justify-between items-center">
+            <span>➕ Új Meccs</span>
+            <button
+              onClick={() => setIsFlagHelperOpen(!isFlagHelperOpen)}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-colors border border-white/5 cursor-pointer"
+            >
+              🏳️ Zászlókód Súgó
             </button>
           </h2>
+
+          {isFlagHelperOpen && (
+            <div className="mb-6 bg-slate-950 rounded-xl p-4 border border-white/5 grid grid-cols-2 md:grid-cols-4 gap-2">
+              {commonFlags.map((flag) => (
+                <div
+                  key={flag.code}
+                  className="flex justify-between items-center text-xs bg-white/5 px-2 py-1.5 rounded"
+                >
+                  <span className="text-slate-400 truncate">{flag.name}</span>
+                  <span className="font-mono text-blue-400 font-bold">
+                    {flag.code}
+                  </span>
+                </div>
+              ))}
+              <div className="col-span-full text-xs text-slate-500 italic mt-2">
+                Ha nem tudod a kódot, hagyd üresen, vagy írj be egy kamu kódot
+                (pl: "un"), és a FIFA logó jelenik meg.
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <input
               type="text"
@@ -226,7 +262,7 @@ export default function AdminPage() {
               onChange={(e) =>
                 setNewMatch({ ...newMatch, kickoffAt: e.target.value })
               }
-              className="bg-black/50 border border-white/10 p-2 rounded text-white"
+              className="bg-black/50 border border-white/10 p-2 rounded text-white [color-scheme:dark]"
             />
             <input
               type="text"
@@ -246,16 +282,22 @@ export default function AdminPage() {
               }
               className="bg-black/50 border border-white/10 p-2 rounded text-white"
             />
+            <input
+              type="text"
+              placeholder="Csoport (pl. Group A)"
+              value={newMatch.groupName}
+              onChange={(e) =>
+                setNewMatch({ ...newMatch, groupName: e.target.value })
+              }
+              className="bg-black/50 border border-white/10 p-2 rounded text-white"
+            />
+
             <select
               value={newMatch.stage}
               onChange={(e) =>
-                setNewMatch({
-                  ...newMatch,
-                  stage: e.target.value,
-                  groupName: e.target.value,
-                })
+                setNewMatch({ ...newMatch, stage: e.target.value })
               }
-              className="bg-black/50 border border-white/10 p-2 rounded text-white"
+              className="bg-black/50 border border-white/10 p-2 rounded text-white md:col-span-3 cursor-pointer"
             >
               <option value="Group Stage">Group Stage</option>
               <option value="Round of 32">Round of 32</option>
@@ -267,23 +309,23 @@ export default function AdminPage() {
           </div>
           <button
             onClick={handleAddNewMatch}
-            className="w-full bg-blue-600 text-white p-3 rounded font-bold"
+            className="w-full bg-blue-600 text-white p-3 rounded font-bold cursor-pointer hover:bg-blue-500"
           >
             Meccs Mentése
           </button>
         </div>
 
-        {/* BUTTONS */}
+        {/* GOMBOK */}
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => triggerCron("calculate-points")}
-            className="flex-1 bg-green-600/20 text-green-400 border border-green-500/50 p-4 rounded font-bold"
+            className="flex-1 bg-green-600/20 hover:bg-green-600/30 transition-colors text-green-400 border border-green-500/50 p-4 rounded font-bold cursor-pointer"
           >
             📊 Pontok Számítása
           </button>
         </div>
 
-        {/* LIST OF MATCHES */}
+        {/* MECCSEK LISTÁJA */}
         <div className="space-y-6">
           {sortedMatches.map((match: any) => {
             const currentHome =
@@ -324,11 +366,22 @@ export default function AdminPage() {
                 className="bg-black/30 border border-white/10 p-5 rounded-xl"
               >
                 <div className="flex justify-between items-center mb-4">
-                  <div className="text-white font-bold text-lg">
-                    {match.home_team} vs {match.away_team}
+                  <div>
+                    <div className="text-white font-bold text-lg">
+                      {match.home_team} vs {match.away_team}
+                    </div>
+                    <div className="text-xs text-slate-500 font-mono mt-1">
+                      {new Date(match.kickoff_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}{" "}
+                      • <span className="text-blue-400">{match.stage}</span>
+                    </div>
                   </div>
 
-                  {/* INPUT */}
+                  {/* BEVITELI MEZŐK */}
                   <div className="flex gap-4 items-center bg-slate-900 p-2 rounded">
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -375,7 +428,7 @@ export default function AdminPage() {
                               },
                             })
                           }
-                          className="bg-black text-xs text-white p-1"
+                          className="bg-black text-xs text-white p-1 cursor-pointer"
                         >
                           <option value="FT">Rendes (FT)</option>
                           <option value="AET">Hosszabítás (AET)</option>
@@ -387,7 +440,7 @@ export default function AdminPage() {
                         currentStatusShort === "PEN") && (
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] text-blue-400 w-6">
-                            120':
+                            AET:
                           </span>
                           <input
                             type="number"
@@ -469,7 +522,7 @@ export default function AdminPage() {
                           currentStatusShort,
                         )
                       }
-                      className="bg-red-600 text-white font-bold p-3 rounded"
+                      className="bg-red-600 hover:bg-red-500 transition-colors text-white font-bold p-3 rounded cursor-pointer"
                     >
                       Mentés
                     </button>

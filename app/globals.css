@@ -316,7 +316,7 @@
   transform-origin: right;
 }
 
-/* --- SAVE GOMB --- */
+/* --- SAVE BUTTON --- */
 .bookmarkBtn {
   width: 100px;
   height: 36px;
@@ -372,3 +372,13 @@
   transition-duration: 0.3s;
 }
 .bookmarkBtn:active { transform: scale(0.95); transition-duration: 0.3s; }
+
+/* Hide number input arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
