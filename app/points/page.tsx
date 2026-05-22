@@ -80,13 +80,15 @@ export default function MyPointsClientPage() {
         `);
 
       if (predData) {
-        // Sort chronologically (oldest to newest)
-        const sorted = (predData as PredictionData[]).sort((a, b) => {
-          return (
-            new Date(a.matches.kickoff_at).getTime() -
-            new Date(b.matches.kickoff_at).getTime()
-          );
-        });
+        // Sort chronologically (oldest to newest) - JAVÍTVA a TypeScript hiba
+        const sorted = (predData as unknown as PredictionData[]).sort(
+          (a, b) => {
+            return (
+              new Date(a.matches.kickoff_at).getTime() -
+              new Date(b.matches.kickoff_at).getTime()
+            );
+          },
+        );
         setAllPredictions(sorted);
       }
       setLoading(false);
@@ -298,7 +300,6 @@ export default function MyPointsClientPage() {
                     const isFinished = match.status === "finished";
                     const isLive = match.status === "live";
 
-                    // Calculate display score (AET/PEN takes precedence for main display if needed, but standard is 90 mins)
                     const displayHome =
                       (match.status_short === "AET" ||
                         match.status_short === "PEN") &&
