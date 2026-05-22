@@ -1,362 +1,391 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Target, Flame, ChevronLeft, ChevronRight } from "lucide-react";
+import Image from "next/image";
+import { Trophy, Flame, Target, ChevronRight } from "lucide-react";
 
-type Prediction = {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeScore?: number;
-  awayScore?: number;
-  predictedHome: number;
-  predictedAway: number;
-  points: number;
-  stage?: string;
-  group?: string;
-  finished?: boolean;
-};
-
-type UserData = {
-  id: string;
-  username: string;
-  avatar?: string;
-  points: number;
-  streak: number;
-  perfect: number;
-  predictions: Prediction[];
-};
-
-export default function PointsPage() {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+export default function MyPointsClientPage() {
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [allPredictions, setAllPredictions] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function loadData() {
+      setLoading(true);
       try {
-        const res = await fetch("/api/my-points");
-        const data = await res.json();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserId(user.id);
+          setSelectedUserId(user.id);
+        }
 
-        const usersData = data.users || [];
+        const { data: pData } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("points", { ascending: false });
+        if (pData) setProfiles(pData);
 
-        const enriched = usersData.map((u: UserData) => ({
-          ...u,
-          perfect: u.predictions?.filter((p) => p.points === 3).length || 0,
-        }));
+        const { data: predData } = await supabase.from("predictions").select(`
+          id, 
+          user_id, 
+          home_score, 
+          away_score, 
+          points,
+          matches (
+            id, 
+            home_team, 
+            away_team, 
+            home_code, 
+            away_code, 
+            kickoff_at, 
+            status, 
+            stage, 
+            home_score, 
+            away_score, 
+            status_short, 
+            group_name
+          )
+        `);
 
-        setUsers(enriched);
-      } catch (err) {
-        console.error(err);
+        if (predData) {
+          const sortedPredictions = predData.sort(
+            (a: any, b: any) =>
+              new Date(a.matches.kickoff_at).getTime() -
+              new Date(b.matches.kickoff_at).getTime(),
+          );
+          setAllPredictions(sortedPredictions);
+        }
+      } catch (error) {
+        console.error("Error while fetching data:", error);
       } finally {
         setLoading(false);
       }
-    };
+    }
+    loadData();
+  }, [supabase]);
 
-    fetchData();
-  }, []);
+  const selectedProfile = profiles.find((p) => p.id === selectedUserId);
 
-  const selectedUser = users[selectedIndex];
+  const filteredHistory = useMemo(() => {
+    return allPredictions.filter((item) => item.user_id === selectedUserId);
+  }, [allPredictions, selectedUserId]);
 
-  const groupedMatches = useMemo(() => {
-    if (!selectedUser?.predictions) return {};
+  const userStats = useMemo(() => {
+    let currentStreak = 0;
+    let perfects = 0;
 
-    return selectedUser.predictions.reduce(
-      (acc: Record<string, Prediction[]>, match) => {
-        const key =
-          match.stage === "GROUP"
-            ? `Group ${match.group || "?"}`
-            : match.stage || "Other";
-
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(match);
-
-        return acc;
-      },
-      {},
+    const finishedPredictions = filteredHistory.filter(
+      (item) => item.matches.status === "finished",
     );
-  }, [selectedUser]);
 
-  const nextProfile = () => {
-    setSelectedIndex((prev) => (prev === users.length - 1 ? 0 : prev + 1));
-  };
+    finishedPredictions.forEach((item) => {
+      const pts = item.points || 0;
+      if (pts === 3) perfects++;
 
-  const prevProfile = () => {
-    setSelectedIndex((prev) => (prev === 0 ? users.length - 1 : prev - 1));
-  };
+      if (pts > 0) {
+        currentStreak++;
+      } else {
+        currentStreak = 0;
+      }
+    });
 
-  if (loading) {
+    return {
+      perfects,
+      streak: currentStreak,
+    };
+  }, [filteredHistory]);
+
+  const groupedHistory = useMemo(() => {
+    return filteredHistory.reduce((groups: any, item: any) => {
+      const groupKey =
+        item.matches.stage && item.matches.stage !== "Group Stage"
+          ? item.matches.stage
+          : item.matches.group_name || "Group Stage";
+
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(item);
+      return groups;
+    }, {});
+  }, [filteredHistory]);
+
+  if (loading)
     return (
-      <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">
-        <div className="animate-pulse text-xl font-bold">Loading points...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0f19]">
+        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
     );
-  }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white px-4 md:px-8 py-8">
-      <div className="max-w-7xl mx-auto">
-        {/* HEADER */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-black tracking-tight">MY POINTS</h1>
+    <div className="max-w-[1200px] mx-auto px-4 pt-24 pb-20 relative z-10 font-sans text-white">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-sm font-bold mb-8"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          ></path>
+        </svg>
+        Back to Dashboard
+      </Link>
 
-          <p className="text-white/50 mt-2">World Cup 2026 Prediction Center</p>
+      <div className="mb-12">
+        <h2 className="font-heading font-black text-2xl tracking-widest uppercase mb-6 flex items-center gap-3">
+          <span className="w-1.5 h-6 bg-gradient-to-b from-blue-400 to-emerald-400 rounded-full"></span>
+          Ranglist
+        </h2>
+
+        <div className="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {profiles.map((p, index) => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedUserId(p.id)}
+              className={`snap-center flex-shrink-0 flex items-center gap-4 p-4 rounded-3xl border backdrop-blur-xl transition-all duration-300 min-w-[240px] ${
+                selectedUserId === p.id
+                  ? "bg-blue-600/20 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.25)] scale-105"
+                  : "bg-slate-900/40 border-white/5 hover:bg-white/5 hover:border-white/10"
+              }`}
+            >
+              <div className="font-mono text-lg font-black text-slate-500 w-6">
+                {index + 1}.
+              </div>
+
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-white/10 relative">
+                {p.avatar_url ? (
+                  <img
+                    src={p.avatar_url}
+                    alt={p.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-white">
+                    {p.name?.substring(0, 2).toUpperCase() || "U"}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-left flex-1 min-w-0">
+                <div className="text-sm font-bold text-white truncate uppercase tracking-wider">
+                  {p.name ? p.name.split(" ")[0] : "User"}{" "}
+                  {p.id === currentUserId && "(Én)"}
+                </div>
+                <div
+                  className={`text-xs font-mono font-bold ${selectedUserId === p.id ? "text-blue-400" : "text-slate-500"}`}
+                >
+                  {p.points || 0} PTS
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* PROFILE SLIDER */}
-        <div className="relative mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Players</h2>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={selectedUserId}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.25 }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-12">
+            <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
+              <Trophy className="w-8 h-8 text-blue-400 mb-3" />
+              <span className="text-4xl font-black text-white font-mono">
+                {selectedProfile?.points || 0}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                All Points
+              </span>
+            </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={prevProfile}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition"
+            <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500"></div>
+              <Flame
+                className={`w-8 h-8 mb-3 ${userStats.streak >= 3 ? "text-orange-500 animate-pulse" : "text-slate-500"}`}
+              />
+              <span
+                className={`text-4xl font-black font-mono ${userStats.streak >= 3 ? "text-orange-400" : "text-white"}`}
               >
-                <ChevronLeft size={18} />
-              </button>
+                {userStats.streak}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Streak
+              </span>
+            </div>
 
-              <button
-                onClick={nextProfile}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition"
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden col-span-2 md:col-span-1">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-green-500"></div>
+              <Target className="w-8 h-8 text-emerald-400 mb-3" />
+              <span className="text-4xl font-black text-white font-mono">
+                {userStats.perfects}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Perfect
+              </span>
             </div>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
-            {users.map((user, index) => {
-              const active = index === selectedIndex;
-
-              return (
-                <motion.button
-                  key={user.id}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedIndex(index)}
-                  className={`
-                    min-w-[260px]
-                    rounded-3xl
-                    border
-                    p-5
-                    text-left
-                    transition-all
-                    snap-center
-                    backdrop-blur-xl
-                    ${
-                      active
-                        ? "border-blue-500 bg-blue-500/10 shadow-[0_0_40px_rgba(59,130,246,0.25)]"
-                        : "border-white/10 bg-white/[0.03]"
-                    }
-                  `}
-                >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={user.avatar || "/default-avatar.png"}
-                      alt={user.username}
-                      className="w-16 h-16 rounded-2xl object-cover border border-white/10"
-                    />
-
-                    <div>
-                      <h3 className="font-bold text-lg">{user.username}</h3>
-
-                      <p className="text-white/50 text-sm">
-                        {user.points} total points
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex justify-between text-sm">
-                    <div>
-                      <p className="text-white/40">Perfect</p>
-                      <p className="font-bold">{user.perfect}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-white/40">Streak</p>
-                      <p className="font-bold">{user.streak}</p>
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* STATS */}
-        <AnimatePresence mode="wait">
-          {selectedUser && (
-            <motion.div
-              key={selectedUser.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-                <StatCard
-                  icon={<Trophy size={24} />}
-                  label="Total Points"
-                  value={selectedUser.points}
-                />
-
-                <StatCard
-                  icon={<Target size={24} />}
-                  label="Perfect Tips"
-                  value={selectedUser.perfect}
-                />
-
-                <StatCard
-                  icon={<Flame size={24} />}
-                  label="Current Streak"
-                  value={selectedUser.streak}
-                />
+          <div className="space-y-12">
+            {Object.keys(groupedHistory).length === 0 ? (
+              <div className="text-center py-12 bg-slate-900/40 border border-white/5 rounded-3xl">
+                <p className="text-slate-500 font-bold uppercase tracking-widest">
+                  This user has not tipped yet.
+                </p>
               </div>
+            ) : (
+              Object.entries(groupedHistory).map(([groupName, items]: any) => (
+                <div key={groupName} className="space-y-6">
+                  <h3 className="font-heading text-white font-black text-xl tracking-widest uppercase flex items-center gap-2 border-b border-white/10 pb-4">
+                    <ChevronRight className="w-6 h-6 text-blue-500" />
+                    {groupName}
+                  </h3>
 
-              {/* MATCH HISTORY */}
-              <div>
-                <h2 className="text-2xl font-black mb-6">Match History</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {items.map((item: any) => {
+                      const match = item.matches;
+                      const isFinished = match.status === "finished";
+                      const pts = item.points || 0;
 
-                <div className="space-y-10">
-                  {Object.entries(groupedMatches).map(
-                    ([groupName, matches]) => (
-                      <div key={groupName}>
-                        <div className="flex items-center gap-3 mb-5">
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl p-5 shadow-lg flex flex-col gap-4 relative overflow-hidden hover:border-white/10 transition-colors"
+                        >
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                            <span className="text-slate-500">
+                              {new Date(match.kickoff_at).toLocaleDateString(
+                                "hu-HU",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[9px] ${match.status === "live" ? "bg-red-500/10 text-red-400 animate-pulse" : isFinished ? "bg-slate-800 text-slate-400" : "bg-blue-500/10 text-blue-400"}`}
+                            >
+                              {match.status === "live"
+                                ? "LIVE"
+                                : isFinished
+                                  ? match.status_short || "ENDED"
+                                  : "Pending"}
+                            </span>
+                          </div>
 
-                          <h3 className="text-lg font-bold text-white/80">
-                            {groupName}
-                          </h3>
-                        </div>
+                          {/* Teams and result */}
+                          <div className="flex justify-between items-center mt-2">
+                            {/* Home team */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className="w-12 h-8 rounded shadow-md overflow-hidden mb-2 border border-white/10 relative">
+                                {match.home_code && match.home_code !== "un" ? (
+                                  <Image
+                                    src={`https://flagcdn.com/w80/${match.home_code.toLowerCase()}.png`}
+                                    alt={match.home_team}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[8px] text-white font-bold">
+                                    FIFA
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-white text-center line-clamp-1">
+                                {match.home_team}
+                              </span>
+                            </div>
 
-                        <div className="grid gap-4">
-                          {matches.map((match) => {
-                            const perfect = match.points === 3;
-                            const success = match.points > 0 && !perfect;
+                            {/* Real result */}
+                            <div className="flex flex-col items-center px-2">
+                              <div className="font-mono text-2xl font-black text-white bg-black/40 px-3 py-1 rounded-xl border border-white/5 shadow-inner">
+                                {match.home_score ?? "-"}
+                                <span className="text-slate-600 mx-1">:</span>
+                                {match.away_score ?? "-"}
+                              </div>
+                            </div>
 
-                            return (
-                              <motion.div
-                                key={match.id}
-                                whileHover={{ y: -2 }}
-                                className={`
-                                  rounded-3xl
-                                  border
-                                  p-5
-                                  backdrop-blur-xl
-                                  transition-all
-                                  ${
-                                    perfect
-                                      ? "border-green-500/40 bg-green-500/10 shadow-[0_0_25px_rgba(34,197,94,0.15)]"
-                                      : success
-                                        ? "border-blue-500/40 bg-blue-500/10 shadow-[0_0_25px_rgba(59,130,246,0.15)]"
-                                        : "border-red-500/20 bg-red-500/[0.05]"
-                                  }
-                                `}
+                            {/* Away team */}
+                            <div className="flex flex-col items-center flex-1">
+                              <div className="w-12 h-8 rounded shadow-md overflow-hidden mb-2 border border-white/10 relative">
+                                {match.away_code && match.away_code !== "un" ? (
+                                  <Image
+                                    src={`https://flagcdn.com/w80/${match.away_code.toLowerCase()}.png`}
+                                    alt={match.away_team}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[8px] text-white font-bold">
+                                    FIFA
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-white text-center line-clamp-1">
+                                {match.away_team}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* The choosen user */}
+                          <div className="mt-2 pt-4 border-t border-white/5 flex justify-between items-center bg-black/20 -mx-5 -mb-5 px-5 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                Tipped:
+                              </span>
+                              <span className="font-mono text-sm font-black text-slate-300">
+                                {item.home_score} : {item.away_score}
+                              </span>
+                            </div>
+
+                            {/* Points badge */}
+                            {isFinished && (
+                              <div
+                                className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider ${
+                                  pts === 3
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+                                    : pts === 1
+                                      ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                      : "bg-slate-800 text-slate-500 border border-slate-700"
+                                }`}
                               >
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                  <div>
-                                    <h4 className="font-bold text-lg">
-                                      {match.homeTeam} vs {match.awayTeam}
-                                    </h4>
-
-                                    <p className="text-white/50 text-sm mt-1">
-                                      Tipped: {match.predictedHome}:
-                                      {match.predictedAway}
-                                    </p>
-
-                                    {match.finished && (
-                                      <p className="text-white/50 text-sm">
-                                        Final: {match.homeScore}:
-                                        {match.awayScore}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-3">
-                                    <div
-                                      className={`
-                                        px-4 py-2 rounded-2xl font-bold
-                                        ${
-                                          perfect
-                                            ? "bg-green-500/20 text-green-300"
-                                            : success
-                                              ? "bg-blue-500/20 text-blue-300"
-                                              : "bg-red-500/20 text-red-300"
-                                        }
-                                      `}
-                                    >
-                                      +{match.points}
-                                    </div>
-
-                                    {perfect && (
-                                      <div className="text-green-400 text-sm font-semibold">
-                                        PERFECT
-                                      </div>
-                                    )}
-
-                                    {success && (
-                                      <div className="text-blue-400 text-sm font-semibold">
-                                        CORRECT
-                                      </div>
-                                    )}
-
-                                    {match.points === 0 && (
-                                      <div className="text-red-400 text-sm font-semibold">
-                                        MISS
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            );
-                          })}
+                                +{pts} PTS
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ),
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              ))
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      className="
-        rounded-3xl
-        border
-        border-white/10
-        bg-white/[0.03]
-        p-6
-        backdrop-blur-xl
-        shadow-[0_0_30px_rgba(255,255,255,0.03)]
-      "
-    >
-      <div className="flex items-center justify-between">
-        <div className="text-blue-400">{icon}</div>
-
-        <div className="text-right">
-          <p className="text-white/40 text-sm">{label}</p>
-
-          <h3 className="text-4xl font-black mt-1">{value}</h3>
-        </div>
-      </div>
-    </motion.div>
   );
 }
