@@ -3,12 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function MyPointsClientPage() {
   const supabase = createClient();
-  const carouselRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -32,15 +30,15 @@ export default function MyPointsClientPage() {
 
       const { data: predData } = await supabase.from("predictions").select(`
           id, user_id, home_score, away_score, points,
-          matches (id, home_team, away_team, home_code, away_code, kickoff_at, status, home_score, away_score, stage, home_score_aet, away_score_aet, home_penalty, away_penalty, status_short)
+          matches (id, home_team, away_team, kickoff_at, status, stage, home_score, away_score, status_short, home_score_aet, away_score_aet, home_penalty, away_penalty)
         `);
 
       if (predData) {
         setAllPredictions(
           predData.sort(
             (a: any, b: any) =>
-              new Date(a.matches.kickoff_at).getTime() -
-              new Date(b.matches.kickoff_at).getTime(),
+              new Date(b.matches.kickoff_at).getTime() -
+              new Date(a.matches.kickoff_at).getTime(),
           ),
         );
       }
@@ -54,114 +52,114 @@ export default function MyPointsClientPage() {
     (item) => item.user_id === selectedUserId,
   );
 
-  const groupedHistory = filteredHistory.reduce((groups: any, item: any) => {
-    const phase = item.matches.stage || "Group Stage";
-    if (!groups[phase]) groups[phase] = [];
-    groups[phase].push(item);
-    return groups;
-  }, {});
-
   if (loading)
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <div className="min-h-screen flex items-center justify-center text-white">
         Loading...
       </div>
     );
 
   return (
-    <div className="max-w-[1000px] mx-auto px-4 pt-28 pb-12">
-      <Link href="/" className="text-blue-400 font-bold mb-8 block">
+    <div className="max-w-4xl mx-auto px-4 pt-24 pb-20">
+      <Link
+        href="/"
+        className="text-slate-400 hover:text-white transition-colors text-sm font-bold mb-8 block"
+      >
         ← Back to Dashboard
       </Link>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 mb-8">
-        {profiles.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setSelectedUserId(p.id)}
-            className={`px-6 py-2 rounded-full border ${selectedUserId === p.id ? "bg-blue-600 border-blue-500" : "bg-slate-900 border-white/10"}`}
-          >
-            {p.name.split(" ")[0]} ({p.points}p)
-          </button>
-        ))}
+      {/* PROFILE SLIDER */}
+      <div className="mb-10">
+        <h2 className="text-white font-bold text-xl mb-4">Ranglista</h2>
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          {profiles.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedUserId(p.id)}
+              className={`flex-shrink-0 flex items-center gap-3 p-3 rounded-2xl border transition-all ${selectedUserId === p.id ? "bg-white/10 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]" : "bg-slate-900/50 border-white/5 hover:border-white/20"}`}
+            >
+              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border border-white/10">
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt={p.name} />
+                ) : (
+                  <span className="text-xs font-bold text-white">
+                    {p.name.charAt(0)}
+                  </span>
+                )}
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold text-white">{p.name}</div>
+                <div className="text-xs text-blue-400 font-mono">
+                  {p.points} pont
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="bg-slate-900/50 p-6 rounded-2xl border border-blue-500/20 text-center">
-          <div className="text-4xl mb-2">🏆</div>
-          <div className="text-3xl font-black text-white">
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="bg-slate-900/50 border border-white/5 p-4 rounded-2xl text-center">
+          <div className="text-2xl mb-1">🏆</div>
+          <div className="text-xl font-black text-white">
             {selectedProfile?.points || 0}
           </div>
-          <div className="text-xs uppercase text-blue-400 font-bold">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500">
             All Points
           </div>
         </div>
-        <div className="bg-slate-900/50 p-6 rounded-2xl border border-green-500/20 text-center">
-          <div className="text-4xl mb-2">🎯</div>
-          <div className="text-3xl font-black text-white">
+        <div className="bg-slate-900/50 border border-white/5 p-4 rounded-2xl text-center">
+          <div className="text-2xl mb-1">🎯</div>
+          <div className="text-xl font-black text-white">
             {selectedProfile?.perfect_tips || 0}
           </div>
-          <div className="text-xs uppercase text-green-500 font-bold">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500">
             Perfect
           </div>
         </div>
-        <div className="bg-slate-900/50 p-6 rounded-2xl border border-orange-500/20 text-center">
-          <div className="text-4xl mb-2">🔥</div>
-          <div className="text-3xl font-black text-white">
+        <div className="bg-slate-900/50 border border-white/5 p-4 rounded-2xl text-center">
+          <div className="text-2xl mb-1">🔥</div>
+          <div className="text-xl font-black text-white">
             {selectedProfile?.streak || 0}
           </div>
-          <div className="text-xs uppercase text-orange-500 font-bold">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500">
             Streak
           </div>
         </div>
       </div>
 
-      {Object.entries(groupedHistory).map(([phase, items]: any) => (
-        <div key={phase} className="mb-10">
-          <h3 className="text-white font-black uppercase tracking-widest mb-4 border-b border-white/10 pb-2">
-            {phase}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.map((item: any) => (
-              <div
-                key={item.id}
-                className="bg-slate-900/40 p-4 rounded-xl border border-white/5"
-              >
-                <div className="flex justify-between text-xs text-slate-500 mb-2">
-                  <span>
-                    {item.matches.home_team} - {item.matches.away_team}
-                  </span>
-                  <span
-                    className={
-                      item.points === 3 ? "text-green-500" : "text-slate-500"
-                    }
-                  >
-                    +{item.points || 0}
-                  </span>
-                </div>
-                <div className="text-lg font-bold text-white mb-1">
-                  {item.matches.home_score ?? "-"} :{" "}
-                  {item.matches.away_score ?? "-"}
-                </div>
-                {item.matches.status_short === "AET" && (
-                  <div className="text-[10px] text-blue-400">
-                    AET: {item.matches.home_score_aet}-
-                    {item.matches.away_score_aet}
-                  </div>
-                )}
-                {item.matches.status_short === "PEN" && (
-                  <div className="text-[10px] text-yellow-500">
-                    PEN: {item.matches.home_penalty}-{item.matches.away_penalty}
-                  </div>
-                )}
-                <div className="text-xs text-blue-400 mt-2">
-                  Tipped: {item.home_score}:{item.away_score}
-                </div>
+      <h2 className="text-white font-bold text-xl mb-6">Tip history</h2>
+      <div className="space-y-3">
+        {filteredHistory.map((item) => (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            key={item.id}
+            className="bg-slate-900/30 border border-white/5 p-4 rounded-xl flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+          >
+            <div className="flex flex-col gap-1">
+              <div className="text-xs text-slate-400 font-bold">
+                {item.matches.home_team} vs {item.matches.away_team}
               </div>
-            ))}
-          </div>
-        </div>
-      ))}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-blue-400 font-mono">
+                  Tipped: {item.home_score}:{item.away_score}
+                </span>
+                <span className="text-slate-600">|</span>
+                <span className="text-white font-mono">
+                  Ended: {item.matches.home_score}:{item.matches.away_score}
+                </span>
+              </div>
+            </div>
+            <div
+              className={`px-3 py-1 rounded-lg text-xs font-black ${item.points >= 3 ? "bg-green-500/20 text-green-400" : item.points > 0 ? "bg-blue-500/20 text-blue-400" : "bg-red-500/10 text-red-500"}`}
+            >
+              +{item.points || 0}
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
