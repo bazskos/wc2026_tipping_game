@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 const commonFlags = [
-const commonFlags = [
   { name: "Algéria", code: "dz" },
   { name: "Anglia", code: "gb-eng" },
   { name: "Argentína", code: "ar" },
