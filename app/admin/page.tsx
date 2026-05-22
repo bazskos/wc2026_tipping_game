@@ -3,35 +3,66 @@
 import { useState } from "react";
 
 const commonFlags = [
+const commonFlags = [
   { name: "Algéria", code: "dz" },
   { name: "Anglia", code: "gb-eng" },
   { name: "Argentína", code: "ar" },
   { name: "Ausztrália", code: "au" },
   { name: "Ausztria", code: "at" },
   { name: "Belgium", code: "be" },
+  { name: "Bolívia", code: "bo" },
   { name: "Bosznia", code: "ba" },
   { name: "Brazília", code: "br" },
   { name: "Chile", code: "cl" },
+  { name: "Costa Rica", code: "cr" },
   { name: "Curaçao", code: "cw" },
   { name: "Csehország", code: "cz" },
   { name: "Dánia", code: "dk" },
   { name: "Dél-Afrika", code: "za" },
   { name: "Dél-Korea", code: "kr" },
   { name: "Ecuador", code: "ec" },
+  { name: "Egyiptom", code: "eg" },
+  { name: "Elefántcsontpart", code: "ci" },
+  { name: "Finnország", code: "fi" },
   { name: "Franciaország", code: "fr" },
+  { name: "Ghána", code: "gh" },
+  { name: "Görögország", code: "gr" },
   { name: "Hollandia", code: "nl" },
   { name: "Horvátország", code: "hr" },
+  { name: "Irán", code: "ir" },
+  { name: "Írország", code: "ie" },
+  { name: "Izland", code: "is" },
   { name: "Japán", code: "jp" },
+  { name: "Kamerun", code: "cm" },
   { name: "Kanada", code: "ca" },
+  { name: "Katar", code: "qa" },
   { name: "Kolumbia", code: "co" },
+  { name: "Lengyelország", code: "pl" },
+  { name: "Marokkó", code: "ma" },
+  { name: "Mexikó", code: "mx" },
   { name: "Németország", code: "de" },
+  { name: "Nigéria", code: "ng" },
+  { name: "Norvégia", code: "no" },
   { name: "Olaszország", code: "it" },
+  { name: "Paraguay", code: "py" },
+  { name: "Peru", code: "pe" },
   { name: "Portugália", code: "pt" },
+  { name: "Románia", code: "ro" },
+  { name: "Sábia", code: "sa" },
+  { name: "Skócia", code: "gb-sct" },
   { name: "Spanyolország", code: "es" },
   { name: "Svájc", code: "ch" },
+  { name: "Svédország", code: "se" },
   { name: "Szenegál", code: "sn" },
+  { name: "Szerbia", code: "rs" },
+  { name: "Szlovákia", code: "sk" },
+  { name: "Tunézia", code: "tn" },
+  { name: "Törökország", code: "tr" },
+  { name: "Ukrajna", code: "ua" },
   { name: "USA", code: "us" },
   { name: "Uruguay", code: "uy" },
+  { name: "Új-Zéland", code: "nz" },
+  { name: "Wales", code: "gb-wls" },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export default function AdminPage() {
@@ -109,12 +140,9 @@ export default function AdminPage() {
     }
     setIsLoading(true);
 
-    // IDŐZÓNA JAVÍTÁS:
-    const localDate = new Date(newMatch.kickoffAt);
-    const tzOffset = localDate.getTimezoneOffset() * 60000;
-    const localIsoString = new Date(localDate.getTime() - tzOffset)
-      .toISOString()
-      .slice(0, -1);
+    // KÖZVETLEN KONVERZIÓ:
+    const date = new Date(newMatch.kickoffAt);
+    const isoDate = date.toISOString(); // Ez automatikusan UTC-be teszi (levonja a 2 órát)
 
     try {
       const response = await fetch("/api/admin/add-match", {
@@ -123,7 +151,7 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${secret}`,
         },
-        body: JSON.stringify({ ...newMatch, kickoffAt: localIsoString }),
+        body: JSON.stringify({ ...newMatch, kickoffAt: isoDate }),
       });
       if (response.ok) {
         setLog(`✅ Meccs hozzáadva!`);
