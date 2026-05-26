@@ -139,7 +139,12 @@ export function DashboardClient() {
     const groupsObj: Record<string, any> = {};
 
     matches.forEach((m) => {
-      if (!m.group || !m.group.toLowerCase().includes("group")) return;
+      if (
+        !m.group ||
+        !m.group.toLowerCase().includes("group") ||
+        m.stage !== "Group Stage"
+      )
+        return;
 
       if (!groupsObj[m.group]) {
         groupsObj[m.group] = { name: m.group, teams: {} };

@@ -220,7 +220,6 @@ export default function AdminPage() {
         kickoffAt: localIso,
         stage: match.stage ?? "Group Stage",
         groupName: match.group_name ?? "",
-        description: match.description ?? "",
       },
     }));
     setEditingMatchId(match.id);
@@ -248,8 +247,8 @@ export default function AdminPage() {
           awayCode: data.awayCode,
           kickoffAt: isoDate,
           stage: data.stage,
-          groupName: data.groupName,
-          description: data.description,
+          // FIX: knockout stage esetén null-t küldünk group_name-nek
+          groupName: data.stage === "Group Stage" ? data.groupName : null,
         }),
       });
       if (response.ok) {
@@ -378,21 +377,37 @@ export default function AdminPage() {
               }
               className="bg-black/50 border border-white/10 p-2 rounded text-white"
             />
-            <input
-              type="text"
-              placeholder="Csoport (pl. Group A)"
-              value={newMatch.groupName}
-              onChange={(e) =>
-                setNewMatch({ ...newMatch, groupName: e.target.value })
-              }
-              className="bg-black/50 border border-white/10 p-2 rounded text-white"
-            />
+
+            {/* FIX: Csoport mező csak Group Stage esetén jelenik meg */}
+            {newMatch.stage === "Group Stage" && (
+              <input
+                type="text"
+                placeholder="Csoport (pl. Group A)"
+                value={newMatch.groupName}
+                onChange={(e) =>
+                  setNewMatch({ ...newMatch, groupName: e.target.value })
+                }
+                className="bg-black/50 border border-white/10 p-2 rounded text-white"
+              />
+            )}
+
+            {/* FIX: Stage váltásakor groupName törlődik ha nem Group Stage */}
             <select
               value={newMatch.stage}
-              onChange={(e) =>
-                setNewMatch({ ...newMatch, stage: e.target.value })
-              }
-              className="bg-black/50 border border-white/10 p-2 rounded text-white md:col-span-3 cursor-pointer"
+              onChange={(e) => {
+                const newStage = e.target.value;
+                setNewMatch({
+                  ...newMatch,
+                  stage: newStage,
+                  groupName:
+                    newStage === "Group Stage" ? newMatch.groupName : "",
+                });
+              }}
+              className={`bg-black/50 border border-white/10 p-2 rounded text-white cursor-pointer ${
+                newMatch.stage === "Group Stage"
+                  ? "md:col-span-3"
+                  : "md:col-span-4"
+              }`}
             >
               <option value="Group Stage">Group Stage</option>
               <option value="Round of 32">Round of 32</option>
@@ -459,7 +474,6 @@ export default function AdminPage() {
 
             const isEditing = editingMatchId === match.id;
             const ed = editData[match.id];
-
             const isGroupStage = match.stage === "Group Stage";
 
             return (
@@ -492,14 +506,8 @@ export default function AdminPage() {
                         </>
                       )}
                     </div>
-                    {match.description && (
-                      <div className="text-xs text-slate-500 italic mt-1">
-                        {match.description}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Szerkesztés toggle gomb */}
                   <button
                     onClick={() =>
                       isEditing ? setEditingMatchId(null) : openEdit(match)
@@ -514,7 +522,6 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* ── ÚJ: SZERKESZTŐ PANEL ── */}
                 {isEditing && ed && (
                   <div className="border-t border-white/10 bg-slate-900/60 p-5">
                     <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
@@ -586,28 +593,45 @@ export default function AdminPage() {
                           className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm [color-scheme:dark]"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
-                          Csoport (pl. Group A)
-                        </label>
-                        <input
-                          type="text"
-                          value={ed.groupName}
-                          onChange={(e) =>
-                            setEdit(match.id, "groupName", e.target.value)
-                          }
-                          className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm"
-                        />
-                      </div>
+
+                      {/* FIX: Csoport mező csak Group Stage esetén jelenik meg a szerkesztőben */}
+                      {ed.stage === "Group Stage" && (
+                        <div>
+                          <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
+                            Csoport (pl. Group A)
+                          </label>
+                          <input
+                            type="text"
+                            value={ed.groupName}
+                            onChange={(e) =>
+                              setEdit(match.id, "groupName", e.target.value)
+                            }
+                            className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm"
+                          />
+                        </div>
+                      )}
+
                       <div className="md:col-span-2">
                         <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
                           Szakasz (Stage)
                         </label>
+                        {/* FIX: Stage váltásakor groupName törlődik a szerkesztőben is */}
                         <select
                           value={ed.stage}
-                          onChange={(e) =>
-                            setEdit(match.id, "stage", e.target.value)
-                          }
+                          onChange={(e) => {
+                            const newStage = e.target.value;
+                            setEditData((prev) => ({
+                              ...prev,
+                              [match.id]: {
+                                ...prev[match.id],
+                                stage: newStage,
+                                groupName:
+                                  newStage === "Group Stage"
+                                    ? prev[match.id]?.groupName
+                                    : "",
+                              },
+                            }));
+                          }}
                           className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm cursor-pointer"
                         >
                           <option value="Group Stage">Group Stage</option>
