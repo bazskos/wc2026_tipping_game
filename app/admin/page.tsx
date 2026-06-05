@@ -144,7 +144,7 @@ export default function AdminPage() {
 
     // DIRECT CONVERSION:
     const date = new Date(newMatch.kickoffAt);
-    const isoDate = date.toISOString(); // This automatically converts to UTC (subtracts 2 hours based on local timezone)
+    const isoDate = date.toISOString(); // This automatically converts to UTC
 
     try {
       const response = await fetch("/api/admin/add-match", {
@@ -330,7 +330,7 @@ export default function AdminPage() {
                 </div>
               ))}
               <div className="col-span-full text-xs text-slate-500 italic mt-2">
-                Ha nincs itt a kód, akkor keress rá (pl. Hungary iso cod) vagy
+                Ha nem tudod a kódot, hagyd üresen, vagy írj be egy kamu kódot
                 (pl: "un"), és a FIFA logó jelenik meg.
               </div>
             </div>
@@ -418,6 +418,7 @@ export default function AdminPage() {
               <option value="Round of 16">Round of 16</option>
               <option value="Quarter-finals">Quarter-finals</option>
               <option value="Semi-finals">Semi-finals</option>
+              <option value="3rd Place Final">3rd Place Final</option>
               <option value="Final">Final</option>
             </select>
           </div>
@@ -645,6 +646,9 @@ export default function AdminPage() {
                           <option value="Round of 16">Round of 16</option>
                           <option value="Quarter-finals">Quarter-finals</option>
                           <option value="Semi-finals">Semi-finals</option>
+                          <option value="3rd Place Final">
+                            3rd Place Final
+                          </option>
                           <option value="Final">Final</option>
                         </select>
                       </div>
