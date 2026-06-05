@@ -208,6 +208,8 @@ export function DashboardClient() {
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
+  const dayAfter = new Date();
+  dayAfter.setDate(dayAfter.getDate() + 2);
 
   const todayStr = today.toLocaleDateString("en-US", {
     month: "short",
@@ -217,14 +219,19 @@ export function DashboardClient() {
     month: "short",
     day: "numeric",
   });
+  const dayAfterStr = dayAfter.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 
   const todayMatches = matches.filter((m) => m.date === todayStr);
   const tomorrowMatches = matches.filter((m) => m.date === tomorrowStr);
+  const dayAfterMatches = matches.filter((m) => m.date === dayAfterStr);
 
   if (isLoading) {
     return (
       <div className="max-w-[1600px] mx-auto relative z-10 p-4 md:p-8">
-        {}
+        {/* Header Loading */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[60vh] py-12 mb-12">
           <div className="flex flex-col items-start gap-6 animate-pulse w-full">
             <div className="w-64 h-8 bg-blue-500/10 border border-blue-500/20 rounded-full"></div>
@@ -238,14 +245,15 @@ export function DashboardClient() {
           <div className="w-full max-w-md ml-auto h-[400px] bg-slate-900/60 border border-white/5 rounded-3xl animate-pulse"></div>
         </div>
 
-        {}
+        {/* Tabs Loading */}
         <div className="flex justify-center mb-16 animate-pulse">
           <div className="w-[90%] max-w-3xl h-14 bg-slate-900/60 rounded-full border border-white/5"></div>
         </div>
 
-        {/* Match Center */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-16 animate-pulse">
-          <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Match Center Loading */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-16 animate-pulse">
+          <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="h-[380px] bg-slate-900/40 border border-white/5 rounded-3xl"></div>
             <div className="h-[380px] bg-slate-900/40 border border-white/5 rounded-3xl"></div>
             <div className="h-[380px] bg-slate-900/40 border border-white/5 rounded-3xl"></div>
           </div>
@@ -397,7 +405,6 @@ export function DashboardClient() {
       </header>
 
       <Tabs defaultValue="groups" className="w-full flex flex-col items-center">
-        {}
         <TabsList className="!h-auto grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap justify-center items-center gap-2 md:gap-3 bg-transparent md:bg-slate-900/60 md:backdrop-blur-xl md:border md:border-white/10 p-0 md:p-3 rounded-none md:rounded-full mb-12 md:mb-16 mx-auto w-full md:w-auto shadow-none md:shadow-2xl">
           {["groups", "r32", "r16", "qf", "sf", "final"].map((tab) => (
             <TabsTrigger
@@ -416,19 +423,21 @@ export function DashboardClient() {
             initial="hidden"
             animate="show"
           >
-            {}
+            {/* MATCH CENTER - NOW 3 COLUMNS WIDE */}
             <div
               id="match-center"
-              className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-16 text-left pt-4 md:pt-24 md:-mt-24"
+              className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-16 text-left pt-4 md:pt-24 md:-mt-24"
             >
               <motion.div
                 variants={itemVariants}
-                className="xl:col-span-2 flex flex-col"
+                className="xl:col-span-3 flex flex-col"
               >
                 <h2 className="font-heading text-3xl font-black text-white uppercase tracking-wider mb-6">
                   Match Center
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+                  {/* Today */}
                   <div className="bg-slate-900/40 backdrop-blur-md border border-blue-500/30 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,1)]"></div>
                     <h3 className="text-blue-400 font-black mb-6 uppercase text-sm tracking-widest flex items-center gap-3">
@@ -441,15 +450,16 @@ export function DashboardClient() {
                           <MiniMatchCard key={match.id} match={match} />
                         ))
                       ) : (
-                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl">
-                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">
-                            Today there are no matches
+                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                            No matches scheduled today
                           </p>
                         </div>
                       )}
                     </div>
                   </div>
 
+                  {/* Tomorrow */}
                   <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
                     <div className="absolute top-0 left-0 w-1 h-full bg-slate-600"></div>
                     <h3 className="text-slate-400 font-black mb-6 uppercase text-sm tracking-widest">
@@ -461,9 +471,30 @@ export function DashboardClient() {
                           <MiniMatchCard key={match.id} match={match} />
                         ))
                       ) : (
-                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl">
-                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">
-                            Tomorrow there are no matches
+                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                            No matches scheduled tomorrow
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Day After Tomorrow */}
+                  <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-600/50"></div>
+                    <h3 className="text-slate-500 font-black mb-6 uppercase text-sm tracking-widest">
+                      Day After Tomorrow
+                    </h3>
+                    <div className="flex-1 flex flex-col justify-center gap-2">
+                      {dayAfterMatches.length > 0 ? (
+                        dayAfterMatches.map((match) => (
+                          <MiniMatchCard key={match.id} match={match} />
+                        ))
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                            No matches scheduled
                           </p>
                         </div>
                       )}
@@ -471,6 +502,7 @@ export function DashboardClient() {
                   </div>
                 </div>
               </motion.div>
+
               <motion.div
                 variants={itemVariants}
                 className="xl:col-span-1 flex flex-col mt-12 xl:mt-0"
