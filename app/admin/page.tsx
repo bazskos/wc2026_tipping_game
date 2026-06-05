@@ -141,8 +141,11 @@ export default function AdminPage() {
       return;
     }
     setIsLoading(true);
+
+    // DIRECT CONVERSION:
     const date = new Date(newMatch.kickoffAt);
-    const isoDate = date.toISOString();
+    const isoDate = date.toISOString(); // This automatically converts to UTC (subtracts 2 hours based on local timezone)
+
     try {
       const response = await fetch("/api/admin/add-match", {
         method: "POST",
@@ -247,7 +250,7 @@ export default function AdminPage() {
           awayCode: data.awayCode,
           kickoffAt: isoDate,
           stage: data.stage,
-          // FIX: knockout stage esetén null-t küldünk group_name-nek
+          // FIX: send null for group_name if it is a knockout stage
           groupName: data.stage === "Group Stage" ? data.groupName : null,
         }),
       });
@@ -301,6 +304,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 max-w-5xl mx-auto font-sans text-left">
       <div className="bg-slate-900/80 backdrop-blur-xl border border-red-500/30 rounded-3xl p-8 shadow-2xl">
+        {/* ADD NEW MATCH */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
           <h2 className="text-white uppercase mb-4 font-bold flex justify-between items-center">
             <span>➕ Új Meccs</span>
@@ -326,7 +330,7 @@ export default function AdminPage() {
                 </div>
               ))}
               <div className="col-span-full text-xs text-slate-500 italic mt-2">
-                Ha nem tudod a kódot, hagyd üresen, vagy írj be egy kamu kódot
+                Ha nincs itt a kód, akkor keress rá (pl. Hungary iso cod) vagy
                 (pl: "un"), és a FIFA logó jelenik meg.
               </div>
             </div>
@@ -378,7 +382,7 @@ export default function AdminPage() {
               className="bg-black/50 border border-white/10 p-2 rounded text-white"
             />
 
-            {/* FIX: Csoport mező csak Group Stage esetén jelenik meg */}
+            {/* FIX: Group field only appears for Group Stage */}
             {newMatch.stage === "Group Stage" && (
               <input
                 type="text"
@@ -391,7 +395,7 @@ export default function AdminPage() {
               />
             )}
 
-            {/* FIX: Stage váltásakor groupName törlődik ha nem Group Stage */}
+            {/* FIX: Clear groupName when changing stage if not Group Stage */}
             <select
               value={newMatch.stage}
               onChange={(e) => {
@@ -425,6 +429,7 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* BUTTONS */}
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => triggerCron("calculate-points")}
@@ -438,6 +443,7 @@ export default function AdminPage() {
           {log}
         </pre>
 
+        {/* MATCH LIST */}
         <div className="space-y-6">
           {sortedMatches.map((match: any) => {
             const currentHome =
@@ -594,7 +600,7 @@ export default function AdminPage() {
                         />
                       </div>
 
-                      {/* FIX: Csoport mező csak Group Stage esetén jelenik meg a szerkesztőben */}
+                      {/* FIX: Group field only appears for Group Stage in editor */}
                       {ed.stage === "Group Stage" && (
                         <div>
                           <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
@@ -615,7 +621,7 @@ export default function AdminPage() {
                         <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
                           Szakasz (Stage)
                         </label>
-                        {/* FIX: Stage váltásakor groupName törlődik a szerkesztőben is */}
+                        {/* FIX: Clear groupName when changing stage in editor too */}
                         <select
                           value={ed.stage}
                           onChange={(e) => {
@@ -655,6 +661,7 @@ export default function AdminPage() {
 
                 <div className="border-t border-white/5 px-5 py-4">
                   <div className="flex gap-4 items-center justify-end bg-slate-900 p-2 rounded">
+                    {/* INPUT FIELDS */}
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400 w-6">90':</span>
