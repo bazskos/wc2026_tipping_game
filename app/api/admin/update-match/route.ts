@@ -65,7 +65,16 @@ export async function POST(req: Request) {
       .update(updateData)
       .eq("id", matchId)
       .select();
+
     if (error) throw error;
+
+    const { error: resetError } = await supabase
+      .from("predictions")
+      .update({ points: null })
+      .eq("match_id", matchId);
+
+    if (resetError) throw resetError;
+
     return NextResponse.json({ success: true, updatedMatch: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
