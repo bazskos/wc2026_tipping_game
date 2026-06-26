@@ -144,7 +144,7 @@ export default function AdminPage() {
 
     // DIRECT CONVERSION:
     const date = new Date(newMatch.kickoffAt);
-    const isoDate = date.toISOString(); // This automatically converts to UTC
+    const isoDate = date.toISOString();
 
     try {
       const response = await fetch("/api/admin/add-match", {
@@ -250,8 +250,7 @@ export default function AdminPage() {
           awayCode: data.awayCode,
           kickoffAt: isoDate,
           stage: data.stage,
-          // FIX: send null for group_name if it is a knockout stage
-          groupName: data.stage === "Group Stage" ? data.groupName : null,
+          groupName: data.groupName || null,
         }),
       });
       if (response.ok) {
@@ -382,20 +381,20 @@ export default function AdminPage() {
               className="bg-black/50 border border-white/10 p-2 rounded text-white"
             />
 
-            {/* FIX: Group field only appears for Group Stage */}
-            {newMatch.stage === "Group Stage" && (
-              <input
-                type="text"
-                placeholder="Csoport (pl. Group A)"
-                value={newMatch.groupName}
-                onChange={(e) =>
-                  setNewMatch({ ...newMatch, groupName: e.target.value })
-                }
-                className="bg-black/50 border border-white/10 p-2 rounded text-white"
-              />
-            )}
+            <input
+              type="text"
+              placeholder={
+                newMatch.stage === "Group Stage"
+                  ? "Csoport (pl. Group A)"
+                  : "FIFA Meccsszám (pl. 74)"
+              }
+              value={newMatch.groupName}
+              onChange={(e) =>
+                setNewMatch({ ...newMatch, groupName: e.target.value })
+              }
+              className="bg-black/50 border border-white/10 p-2 rounded text-white font-mono"
+            />
 
-            {/* FIX: Clear groupName when changing stage if not Group Stage */}
             <select
               value={newMatch.stage}
               onChange={(e) => {
@@ -407,11 +406,7 @@ export default function AdminPage() {
                     newStage === "Group Stage" ? newMatch.groupName : "",
                 });
               }}
-              className={`bg-black/50 border border-white/10 p-2 rounded text-white cursor-pointer ${
-                newMatch.stage === "Group Stage"
-                  ? "md:col-span-3"
-                  : "md:col-span-4"
-              }`}
+              className="bg-black/50 border border-white/10 p-2 rounded text-white cursor-pointer md:col-span-3"
             >
               <option value="Group Stage">Group Stage</option>
               <option value="Round of 32">Round of 32</option>
@@ -504,11 +499,13 @@ export default function AdminPage() {
                       </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-blue-400">{match.stage}</span>
-                      {isGroupStage && match.group_name && (
+                      {match.group_name && (
                         <>
                           <span className="text-slate-600">•</span>
                           <span className="text-amber-400 font-bold">
-                            {match.group_name}
+                            {isGroupStage
+                              ? match.group_name
+                              : `Match #${match.group_name}`}
                           </span>
                         </>
                       )}
@@ -601,28 +598,27 @@ export default function AdminPage() {
                         />
                       </div>
 
-                      {/* FIX: Group field only appears for Group Stage in editor */}
-                      {ed.stage === "Group Stage" && (
-                        <div>
-                          <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
-                            Csoport (pl. Group A)
-                          </label>
-                          <input
-                            type="text"
-                            value={ed.groupName}
-                            onChange={(e) =>
-                              setEdit(match.id, "groupName", e.target.value)
-                            }
-                            className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm"
-                          />
-                        </div>
-                      )}
+                      {/* FIX: UNWRAPPED groupName input field for knockout stages in editor */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
+                          {ed.stage === "Group Stage"
+                            ? "Csoport (pl. Group A)"
+                            : "FIFA Meccsszám (pl. 74)"}
+                        </label>
+                        <input
+                          type="text"
+                          value={ed.groupName ?? ""}
+                          onChange={(e) =>
+                            setEdit(match.id, "groupName", e.target.value)
+                          }
+                          className="w-full bg-black/50 border border-white/10 p-2 rounded text-white text-sm font-mono"
+                        />
+                      </div>
 
                       <div className="md:col-span-2">
                         <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">
                           Szakasz (Stage)
                         </label>
-                        {/* FIX: Clear groupName when changing stage in editor too */}
                         <select
                           value={ed.stage}
                           onChange={(e) => {

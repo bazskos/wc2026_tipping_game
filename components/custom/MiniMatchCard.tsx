@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 
-export function MiniMatchCard({ match }: { match: any }) {
+export function MiniMatchCard({
+  match,
+  readOnly = false,
+}: {
+  match: any;
+  readOnly?: boolean;
+}) {
   const [homeScore, setHomeScore] = useState<string>("");
   const [awayScore, setAwayScore] = useState<string>("");
 
@@ -70,8 +76,8 @@ export function MiniMatchCard({ match }: { match: any }) {
           setAwayScore(result.data.away_score.toString());
           setHasPrediction(true);
         }
-      } catch (err) {
-      } finally {
+      } catch (err) {}
+      {
         if (isMounted) setIsLoading(false);
       }
     };
@@ -82,7 +88,7 @@ export function MiniMatchCard({ match }: { match: any }) {
   }, [match.id]);
 
   const handleSavePrediction = async () => {
-    if (!homeScore || !awayScore || isLocked) return;
+    if (!homeScore || !awayScore || isLocked || readOnly) return;
     setIsSubmitting(true);
     setMessage(null);
     try {
@@ -109,7 +115,7 @@ export function MiniMatchCard({ match }: { match: any }) {
 
   return (
     <div
-      className={`bg-slate-950/50 rounded-2xl p-4 border flex flex-col gap-4 relative transition-all duration-500 ${isLocked ? "border-white/5 opacity-50 grayscale-[30%]" : hasPrediction && !isEditing ? "border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]" : "border-white/10 hover:border-white/20"}`}
+      className={`bg-slate-950/50 rounded-2xl p-4 border flex flex-col gap-4 relative transition-all duration-500 ${isLocked ? "border-white/5 opacity-60 grayscale-[10%]" : hasPrediction && !isEditing ? "border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.05)]" : "border-white/10 hover:border-white/20"}`}
     >
       <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
         <span>
@@ -123,11 +129,12 @@ export function MiniMatchCard({ match }: { match: any }) {
       <div className="flex justify-between items-center gap-4">
         {/* HOME TEAM */}
         <div className="flex-1 flex flex-col items-center">
-          <div className="relative w-10 h-7 rounded overflow-hidden shadow-md mb-2">
+          <div className="relative w-10 h-7 rounded overflow-hidden shadow-md mb-2 border border-white/5">
             {match.homeTeam.code !== "un" ? (
               <img
                 src={`https://flagcdn.com/w80/${match.homeTeam.code}.png`}
                 className="w-full h-full object-cover"
+                alt={match.homeTeam.name}
               />
             ) : (
               <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[8px] text-white">
@@ -140,7 +147,7 @@ export function MiniMatchCard({ match }: { match: any }) {
           </span>
         </div>
 
-        {/* SCORE */}
+        {/* SCORE DISPLAY */}
         <div className="flex flex-col items-center">
           {isMatchStarted ? (
             <div className="flex flex-col items-center">
@@ -179,7 +186,13 @@ export function MiniMatchCard({ match }: { match: any }) {
                 {awayScore}
               </div>
             </div>
+          ) : readOnly ? (
+            /* Bracket readonly view with no prediction submitted yet */
+            <div className="font-mono text-xl font-black text-slate-700">
+              - : -
+            </div>
           ) : (
+            /* Active editable inputs inside Match Center */
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -208,11 +221,12 @@ export function MiniMatchCard({ match }: { match: any }) {
 
         {/* AWAY TEAM */}
         <div className="flex-1 flex flex-col items-center">
-          <div className="relative w-10 h-7 rounded overflow-hidden shadow-md mb-2">
+          <div className="relative w-10 h-7 rounded overflow-hidden shadow-md mb-2 border border-white/5">
             {match.awayTeam.code !== "un" ? (
               <img
                 src={`https://flagcdn.com/w80/${match.awayTeam.code}.png`}
                 className="w-full h-full object-cover"
+                alt={match.awayTeam.name}
               />
             ) : (
               <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[8px] text-white">
@@ -226,6 +240,7 @@ export function MiniMatchCard({ match }: { match: any }) {
         </div>
       </div>
 
+      {/* FOOTER BAR */}
       <div className="mt-2 h-9 relative z-10">
         {isLoading ? (
           <div className="h-full flex items-center justify-center rounded-xl bg-slate-900/50 border border-white/5">
@@ -253,6 +268,13 @@ export function MiniMatchCard({ match }: { match: any }) {
               </span>
             )}
           </div>
+        ) : readOnly ? (
+          /* Static bracket node description */
+          <div className="h-full flex items-center justify-center rounded-xl bg-slate-900/30 border border-white/5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            {hasPrediction
+              ? `Your Tip: ${homeScore} - ${awayScore} ✅`
+              : "Tipping locks at Match Center 🔒"}
+          </div>
         ) : message ? (
           <div
             className={`h-full flex items-center justify-center rounded-xl text-[10px] font-black tracking-widest uppercase ${message.type === "success" ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}
@@ -271,19 +293,6 @@ export function MiniMatchCard({ match }: { match: any }) {
                 onClick={() => setIsEditing(true)}
                 className="px-4 h-full rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer flex items-center gap-1"
               >
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  ></path>
-                </svg>
                 Edit
               </button>
             )}
