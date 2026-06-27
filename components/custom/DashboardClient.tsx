@@ -35,16 +35,27 @@ const tabLabels: Record<string, string> = {
 
 export function DashboardClient() {
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const [isLive, setIsLive] = useState(false);
+  const [leaders, setLeaders] = useState<any[]>([]);
+
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [matches, setMatches] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 1. ÓRA VAGY ÉLLOVAS MÓD ELDÖNTÉSE
   useEffect(() => {
     const target = new Date("2026-06-11T19:00:00Z").getTime();
+    const now = new Date().getTime();
+
+    if (now >= target) {
+      setIsLive(true);
+      return;
+    }
+
     const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const diff = target - now;
+      const currentNow = new Date().getTime();
+      const diff = target - currentNow;
       if (diff > 0) {
         setTimeLeft({
           d: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -53,14 +64,19 @@ export function DashboardClient() {
           s: Math.floor((diff % (1000 * 60)) / 1000),
         });
       } else {
+        setIsLive(true);
         clearInterval(interval);
       }
     }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
+  // 2. ADATOK LEKÉRÉSE (Meccsek + Aktivitás + Leaderboard 1. helyezett)
   useEffect(() => {
-    async function fetchMatches() {
+    const supabase = createClient();
+
+    async function fetchDashboardData() {
       try {
         const res = await fetch("/api/matches");
         const result = await res.json();
@@ -68,7 +84,6 @@ export function DashboardClient() {
         if (result.data) {
           const formattedMatches = result.data.map((m: any) => {
             const dateObj = new Date(m.kickoff_at);
-
             const realGroup = m.group_name;
 
             return {
@@ -104,28 +119,36 @@ export function DashboardClient() {
           if (activityResult.data) {
             setActivities(activityResult.data);
           }
+
+          // Kinyerjük a profilok közül az éllovas(oka)t:
+          const { data: topProfiles } = await supabase
+            .from("profiles")
+            .select("*")
+            .order("points", { ascending: false });
+
+          if (topProfiles && topProfiles.length > 0) {
+            const maxPoints = topProfiles[0].points || 0;
+            setLeaders(
+              topProfiles.filter((p: any) => (p.points || 0) === maxPoints),
+            );
+          }
         }
       } catch (err) {
-        console.error("Error while loading matches:", err);
+        console.error("Error while loading dashboard data:", err);
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchMatches();
+    fetchDashboardData();
 
-    const supabase = createClient();
     const channel = supabase
       .channel("matches-live-updates")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "matches" },
-        (payload) => {
-          console.log(
-            "A match has been updated in the background! Reloading...",
-            payload,
-          );
-          fetchMatches();
+        () => {
+          fetchDashboardData();
         },
       )
       .subscribe();
@@ -245,11 +268,6 @@ export function DashboardClient() {
           <div className="w-full max-w-md ml-auto h-[400px] bg-slate-900/60 border border-white/5 rounded-3xl animate-pulse"></div>
         </div>
 
-        {/* Tabs Loading */}
-        <div className="flex justify-center mb-16 animate-pulse">
-          <div className="w-[90%] max-w-3xl h-14 bg-slate-900/60 rounded-full border border-white/5"></div>
-        </div>
-
         {/* Match Center Loading */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-16 animate-pulse">
           <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -258,6 +276,11 @@ export function DashboardClient() {
             <div className="h-[380px] bg-slate-900/40 border border-white/5 rounded-3xl"></div>
           </div>
           <div className="xl:col-span-1 h-[380px] bg-slate-900/40 border border-white/5 rounded-3xl"></div>
+        </div>
+
+        {/* Tabs Loading */}
+        <div className="flex justify-center mb-16 animate-pulse">
+          <div className="w-[90%] max-w-3xl h-14 bg-slate-900/60 rounded-full border border-white/5"></div>
         </div>
       </div>
     );
@@ -272,24 +295,79 @@ export function DashboardClient() {
           transition={{ duration: 0.7, type: "spring" }}
           className="flex flex-col items-start text-left"
         >
-          <div className="flex items-center gap-4 mb-8">
-            <div className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(59,130,246,0.2)] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-              Tournament Starts In
+          {/* ========================================================= */}
+          {/* DINAMIKUS BANNER: HA MEGY A VB, AZ ÉLLOVAST MUTATJA */}
+          {/* ========================================================= */}
+          {isLive ? (
+            <a
+              href="#leaderboard"
+              className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8 group cursor-pointer no-underline transition-transform hover:translate-x-1"
+            >
+              <div className="px-3 py-1.5 sm:px-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] sm:text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Tournament Live
+              </div>
+
+              {leaders.length > 0 && (
+                <div className="flex items-center gap-2 bg-slate-900/90 border border-amber-500/40 px-3.5 py-1 sm:px-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.15)] group-hover:border-amber-400 transition-all">
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+                    Leader{leaders.length > 1 ? "s" : ""}:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {leaders.map((l, idx) => {
+                      const name =
+                        l.username || l.full_name || l.name || "Player";
+                      const avatar = l.avatar_url || l.avatarUrl;
+                      return (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          {idx > 0 && (
+                            <span className="text-slate-600 font-bold">&</span>
+                          )}
+                          {avatar ? (
+                            <img
+                              src={avatar}
+                              className="w-4 h-4 rounded-full object-cover border border-amber-500/50"
+                              alt={name}
+                            />
+                          ) : (
+                            <span className="text-xs">👑</span>
+                          )}
+                          <span className="text-xs font-black text-amber-400 font-mono tracking-wider">
+                            {name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <span className="text-[10px] font-black text-slate-950 ml-1 bg-amber-400 px-1.5 py-0.5 rounded font-mono">
+                      {leaders[0]?.points} PTS
+                    </span>
+                  </div>
+                </div>
+              )}
+            </a>
+          ) : (
+            /* RÉGI VISSZASZÁMLÁLÓ (ha tesztelnéd jövőbeli dátummal) */
+            <div className="flex items-center gap-4 mb-8">
+              <div className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(59,130,246,0.2)] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                Tournament Starts In
+              </div>
+              <div className="flex gap-2 text-sm font-mono font-bold text-slate-300">
+                <div className="bg-white/5 px-2 py-1 rounded">
+                  {timeLeft.d}d
+                </div>
+                <div className="bg-white/5 px-2 py-1 rounded">
+                  {String(timeLeft.h).padStart(2, "0")}h
+                </div>
+                <div className="bg-white/5 px-2 py-1 rounded">
+                  {String(timeLeft.m).padStart(2, "0")}m
+                </div>
+                <div className="bg-white/5 px-2 py-1 rounded text-blue-400">
+                  {String(timeLeft.s).padStart(2, "0")}s
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2 text-sm font-mono font-bold text-slate-300">
-              <div className="bg-white/5 px-2 py-1 rounded">{timeLeft.d}d</div>
-              <div className="bg-white/5 px-2 py-1 rounded">
-                {String(timeLeft.h).padStart(2, "0")}h
-              </div>
-              <div className="bg-white/5 px-2 py-1 rounded">
-                {String(timeLeft.m).padStart(2, "0")}m
-              </div>
-              <div className="bg-white/5 px-2 py-1 rounded text-blue-400">
-                {String(timeLeft.s).padStart(2, "0")}s
-              </div>
-            </div>
-          </div>
+          )}
 
           <h1 className="font-heading text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tighter text-white mb-6 leading-[1.1]">
             Predict{" "}
@@ -404,6 +482,104 @@ export function DashboardClient() {
         </motion.div>
       </header>
 
+      {/* ========================================================= */}
+      {/* KÖZPONTI TIPPELŐ ZÓNA: MATCH CENTER & LEADERBOARD */}
+      {/* ========================================================= */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        id="match-center"
+        className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-16 text-left pt-4"
+      >
+        <motion.div
+          variants={itemVariants}
+          className="xl:col-span-3 flex flex-col"
+        >
+          <h2 className="font-heading text-3xl font-black text-white uppercase tracking-wider mb-6">
+            Match Center
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+            {/* Today */}
+            <div className="bg-slate-900/40 backdrop-blur-md border border-blue-500/30 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full group">
+              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,1)]"></div>
+              <h3 className="text-blue-400 font-black mb-6 uppercase text-sm tracking-widest flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>{" "}
+                Today's Matches
+              </h3>
+              <div className="flex-1 flex flex-col justify-center gap-2">
+                {todayMatches.length > 0 ? (
+                  todayMatches.map((match) => (
+                    <MiniMatchCard key={match.id} match={match} />
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                      No matches scheduled today
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tomorrow */}
+            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
+              <div className="absolute top-0 left-0 w-1 h-full bg-slate-600"></div>
+              <h3 className="text-slate-400 font-black mb-6 uppercase text-sm tracking-widest">
+                Tomorrow
+              </h3>
+              <div className="flex-1 flex flex-col justify-center gap-2">
+                {tomorrowMatches.length > 0 ? (
+                  tomorrowMatches.map((match) => (
+                    <MiniMatchCard key={match.id} match={match} />
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                      No matches scheduled tomorrow
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Day After Tomorrow */}
+            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
+              <div className="absolute top-0 left-0 w-1 h-full bg-slate-600/50"></div>
+              <h3 className="text-slate-500 font-black mb-6 uppercase text-sm tracking-widest">
+                Day After Tomorrow
+              </h3>
+              <div className="flex-1 flex flex-col justify-center gap-2">
+                {dayAfterMatches.length > 0 ? (
+                  dayAfterMatches.map((match) => (
+                    <MiniMatchCard key={match.id} match={match} />
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
+                      No matches scheduled
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* --- LEADERBOARD (KAPOTT EGY ID-T A GÖRDÍTÉSHEZ) --- */}
+        <motion.div
+          variants={itemVariants}
+          id="leaderboard"
+          className="xl:col-span-1 flex flex-col mt-12 xl:mt-0 scroll-mt-32"
+        >
+          <Leaderboard />
+        </motion.div>
+      </motion.div>
+
+      {/* ========================================================= */}
+      {/* VÁLASZTÓ FÜLEK (LEJJEBB MINDEN ALATT) */}
+      {/* ========================================================= */}
       <Tabs defaultValue="groups" className="w-full flex flex-col items-center">
         <TabsList className="!h-auto grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap justify-center items-center gap-2 md:gap-3 bg-transparent md:bg-slate-900/60 md:backdrop-blur-xl md:border md:border-white/10 p-0 md:p-3 rounded-none md:rounded-full mb-12 md:mb-16 mx-auto w-full md:w-auto shadow-none md:shadow-2xl">
           {["groups", "r32", "r16", "qf", "sf", "final"].map((tab) => (
@@ -423,94 +599,6 @@ export function DashboardClient() {
             initial="hidden"
             animate="show"
           >
-            {/* MATCH CENTER - NOW 3 COLUMNS WIDE */}
-            <div
-              id="match-center"
-              className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-16 text-left pt-4 md:pt-24 md:-mt-24"
-            >
-              <motion.div
-                variants={itemVariants}
-                className="xl:col-span-3 flex flex-col"
-              >
-                <h2 className="font-heading text-3xl font-black text-white uppercase tracking-wider mb-6">
-                  Match Center
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
-                  {/* Today */}
-                  <div className="bg-slate-900/40 backdrop-blur-md border border-blue-500/30 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,1)]"></div>
-                    <h3 className="text-blue-400 font-black mb-6 uppercase text-sm tracking-widest flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>{" "}
-                      Today's Matches
-                    </h3>
-                    <div className="flex-1 flex flex-col justify-center gap-2">
-                      {todayMatches.length > 0 ? (
-                        todayMatches.map((match) => (
-                          <MiniMatchCard key={match.id} match={match} />
-                        ))
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
-                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
-                            No matches scheduled today
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tomorrow */}
-                  <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-600"></div>
-                    <h3 className="text-slate-400 font-black mb-6 uppercase text-sm tracking-widest">
-                      Tomorrow
-                    </h3>
-                    <div className="flex-1 flex flex-col justify-center gap-2">
-                      {tomorrowMatches.length > 0 ? (
-                        tomorrowMatches.map((match) => (
-                          <MiniMatchCard key={match.id} match={match} />
-                        ))
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
-                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
-                            No matches scheduled tomorrow
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Day After Tomorrow */}
-                  <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-lg relative overflow-hidden flex flex-col h-full">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-600/50"></div>
-                    <h3 className="text-slate-500 font-black mb-6 uppercase text-sm tracking-widest">
-                      Day After Tomorrow
-                    </h3>
-                    <div className="flex-1 flex flex-col justify-center gap-2">
-                      {dayAfterMatches.length > 0 ? (
-                        dayAfterMatches.map((match) => (
-                          <MiniMatchCard key={match.id} match={match} />
-                        ))
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center min-h-[120px] bg-white/5 border border-white/5 rounded-2xl p-4">
-                          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest text-center">
-                            No matches scheduled
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                variants={itemVariants}
-                className="xl:col-span-1 flex flex-col mt-12 xl:mt-0"
-              >
-                <Leaderboard />
-              </motion.div>
-            </div>
-
             <motion.h2
               variants={itemVariants}
               className="font-heading text-3xl font-black text-white uppercase tracking-wider mb-6 text-left"
