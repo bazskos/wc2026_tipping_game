@@ -43,7 +43,6 @@ export function DashboardClient() {
   const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. ÓRA VAGY ÉLLOVAS MÓD ELDÖNTÉSE
   useEffect(() => {
     const target = new Date("2026-06-11T19:00:00Z").getTime();
     const now = new Date().getTime();
@@ -72,7 +71,6 @@ export function DashboardClient() {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. ADATOK LEKÉRÉSE (Meccsek + Aktivitás + Leaderboard 1. helyezett)
   useEffect(() => {
     const supabase = createClient();
 
@@ -120,7 +118,6 @@ export function DashboardClient() {
             setActivities(activityResult.data);
           }
 
-          // Kinyerjük a profilok közül az éllovas(oka)t:
           const { data: topProfiles } = await supabase
             .from("profiles")
             .select("*")
@@ -253,7 +250,7 @@ export function DashboardClient() {
 
   if (isLoading) {
     return (
-      <div className="max-w-[1600px] mx-auto relative z-10 p-4 md:p-8">
+      <div className="max-w-[1600px] mx-auto relative z-10 p-4 md:p-8 pt-24 md:pt-32">
         {/* Header Loading */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[60vh] py-12 mb-12">
           <div className="flex flex-col items-start gap-6 animate-pulse w-full">
@@ -287,7 +284,7 @@ export function DashboardClient() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto relative z-10 p-4 md:p-8">
+    <div className="max-w-[1600px] mx-auto relative z-10 p-4 md:p-8 pt-24 md:pt-32">
       <header className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[60vh] py-12 mb-12 relative">
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -295,13 +292,10 @@ export function DashboardClient() {
           transition={{ duration: 0.7, type: "spring" }}
           className="flex flex-col items-start text-left"
         >
-          {/* ========================================================= */}
-          {/* DINAMIKUS BANNER: HA MEGY A VB, AZ ÉLLOVAST MUTATJA */}
-          {/* ========================================================= */}
           {isLive ? (
             <a
               href="#leaderboard"
-              className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8 group cursor-pointer no-underline transition-transform hover:translate-x-1"
+              className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 mb-8 mt-2 group cursor-pointer no-underline transition-transform hover:translate-x-1"
             >
               <div className="px-3 py-1.5 sm:px-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] sm:text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -346,8 +340,7 @@ export function DashboardClient() {
               )}
             </a>
           ) : (
-            /* RÉGI VISSZASZÁMLÁLÓ (ha tesztelnéd jövőbeli dátummal) */
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-4 mb-8 mt-2">
               <div className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(59,130,246,0.2)] flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                 Tournament Starts In
@@ -482,9 +475,6 @@ export function DashboardClient() {
         </motion.div>
       </header>
 
-      {/* ========================================================= */}
-      {/* KÖZPONTI TIPPELŐ ZÓNA: MATCH CENTER & LEADERBOARD */}
-      {/* ========================================================= */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -567,7 +557,6 @@ export function DashboardClient() {
           </div>
         </motion.div>
 
-        {/* --- LEADERBOARD (KAPOTT EGY ID-T A GÖRDÍTÉSHEZ) --- */}
         <motion.div
           variants={itemVariants}
           id="leaderboard"
@@ -577,9 +566,6 @@ export function DashboardClient() {
         </motion.div>
       </motion.div>
 
-      {/* ========================================================= */}
-      {/* VÁLASZTÓ FÜLEK (LEJJEBB MINDEN ALATT) */}
-      {/* ========================================================= */}
       <Tabs defaultValue="groups" className="w-full flex flex-col items-center">
         <TabsList className="!h-auto grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap justify-center items-center gap-2 md:gap-3 bg-transparent md:bg-slate-900/60 md:backdrop-blur-xl md:border md:border-white/10 p-0 md:p-3 rounded-none md:rounded-full mb-12 md:mb-16 mx-auto w-full md:w-auto shadow-none md:shadow-2xl">
           {["groups", "r32", "r16", "qf", "sf", "final"].map((tab) => (
