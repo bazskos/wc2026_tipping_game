@@ -63,7 +63,9 @@ export async function GET(request: Request) {
           `
           user_id, 
           points,
-          matches ( kickoff_at )
+          home_score,
+          away_score,
+          matches ( kickoff_at, home_score, away_score )
         `,
         )
         .not("points", "is", null);
@@ -80,17 +82,32 @@ export async function GET(request: Request) {
 
     const userTotals: Record<
       string,
-      { points: number; perfects: number; streak: number }
+      { points: number; perfects: number; streak: number; nearMisses: number }
     > = {};
 
     for (const [userId, preds] of Object.entries(userPredictions)) {
       let totalPoints = 0;
       let perfects = 0;
       let currentStreak = 0;
+      let nearMissesCount = 0;
 
       for (const p of preds) {
         totalPoints += p.points || 0;
         if (p.points === 3) perfects += 1;
+
+        if (
+          p.matches &&
+          p.matches.home_score !== null &&
+          p.matches.away_score !== null
+        ) {
+          const diff =
+            Math.abs(p.home_score - p.matches.home_score) +
+            Math.abs(p.away_score - p.matches.away_score);
+
+          if (diff === 1) {
+            nearMissesCount += 1;
+          }
+        }
       }
 
       const sortedPreds = preds.sort((a, b) => {
@@ -111,6 +128,7 @@ export async function GET(request: Request) {
         points: totalPoints,
         perfects,
         streak: currentStreak,
+        nearMisses: nearMissesCount,
       };
     }
 
@@ -121,6 +139,7 @@ export async function GET(request: Request) {
           points: totals.points,
           perfect_tips: totals.perfects,
           streak: totals.streak,
+          near_misses: totals.nearMisses,
         })
         .eq("id", userId);
     }
@@ -128,7 +147,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       processed_predictions: processedCount,
-      message: "Points, perfect tips, and STREAKS updated successfully!",
+      message:
+        "Points, perfect tips, near misses and STREAKS updated successfully!",
     });
   } catch (error) {
     console.error("Error while calculating points:", error);

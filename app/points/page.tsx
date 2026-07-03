@@ -13,6 +13,7 @@ interface Profile {
   points: number;
   perfect_tips: number;
   streak: number;
+  near_misses: number;
 }
 
 interface MatchData {
@@ -73,7 +74,9 @@ export default function MyPointsClientPage() {
 
       const { data: pData } = await supabase
         .from("profiles")
-        .select("id, name, avatar_url, points, perfect_tips, streak")
+        .select(
+          "id, name, avatar_url, points, perfect_tips, streak, near_misses",
+        )
         .order("points", { ascending: false });
 
       if (pData) {
@@ -242,7 +245,7 @@ export default function MyPointsClientPage() {
         </div>
       </div>
 
-      {/* --- STATS SECTION (UPGRADED) --- */}
+      {/* --- STATS SECTION --- */}
       <AnimatePresence mode="wait">
         <motion.div
           key={selectedUserId}
@@ -251,7 +254,7 @@ export default function MyPointsClientPage() {
           transition={{ duration: 0.3 }}
           className="mb-16"
         >
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
             {/* 1. Points Card */}
             <div className="bg-slate-900/60 border border-blue-500/20 rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-lg group hover:border-blue-500/40 transition-colors">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors"></div>
@@ -294,8 +297,47 @@ export default function MyPointsClientPage() {
               </span>
             </div>
 
-            {/* 4. Participation Rate */}
-            <div className="bg-slate-900/60 border border-purple-500/20 rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-lg group hover:border-purple-500/40 transition-colors">
+            <div className="col-span-1 bg-slate-900/60 border border-pink-500/20 rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-visible shadow-lg group hover:border-pink-500/40 transition-colors">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/10 rounded-full blur-3xl group-hover:bg-pink-500/20 transition-colors"></div>
+
+              <div className="absolute top-3 right-3 z-20">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const tooltip =
+                      document.getElementById("near-miss-tooltip");
+                    if (tooltip) tooltip.classList.toggle("opacity-0");
+                  }}
+                  className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-slate-400 font-bold border border-white/10 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                >
+                  i
+                </button>
+                <div
+                  id="near-miss-tooltip"
+                  className="absolute bottom-full right-0 md:-right-1/2 mb-2 w-48 bg-slate-800 text-[10px] text-slate-200 p-3 rounded-xl shadow-2xl opacity-0 pointer-events-none transition-opacity border border-white/10 z-50 leading-relaxed"
+                >
+                  <strong className="text-pink-400 block mb-1">
+                    Consolation Rule:
+                  </strong>
+                  You receive it if your prediction was off by exactly one goal
+                  from the correct result (e.g., the match ended 1–0, but you
+                  predicted 2–0, 1–1, or 0–0).
+                </div>
+              </div>
+
+              <span className="text-3xl mb-2 relative z-10">🤏</span>
+              <span className="text-4xl font-black text-pink-400 relative z-10 tabular-nums">
+                {selectedProfile?.near_misses || 0}
+              </span>
+              <span className="text-[10px] font-bold text-pink-500 uppercase tracking-widest mt-1 relative z-10 text-center">
+                Consolation
+                <br />
+                (1 Goal)
+              </span>
+            </div>
+
+            {/* 5. Participation Rate */}
+            <div className="col-span-2 lg:col-span-1 bg-slate-900/60 border border-purple-500/20 rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-lg group hover:border-purple-500/40 transition-colors">
               <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors"></div>
               <span className="text-3xl mb-2 relative z-10">🎟️</span>
               <span className="text-3xl font-black text-purple-400 relative z-10 tabular-nums flex items-baseline">

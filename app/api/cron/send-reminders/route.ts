@@ -7,7 +7,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function GET(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.log("❌ Hibás cron kulcs!");
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -17,33 +19,36 @@ export async function GET(request: Request) {
   );
 
   try {
-    const inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const now = Date.now();
+    const startTime = new Date(now).toISOString();
+    const endTime = new Date(now + 120 * 60 * 1000).toISOString();
+
+    console.log(`🔍 Keresés: ${startTime} és ${endTime} között.`);
 
     const { data: matches, error: matchError } = await supabaseAdmin
       .from("matches")
       .select("id, home_team, away_team, kickoff_at")
       .eq("status", "scheduled")
-      .gte("kickoff_at", inOneHour)
-      .lte("kickoff_at", inTwoHours);
+      .gte("kickoff_at", startTime)
+      .lte("kickoff_at", endTime);
 
-    if (matchError || !matches || matches.length === 0) {
-      return NextResponse.json({
-        message: "No upcoming match, no need to send reminder.",
-      });
+    if (matchError) {
+      console.error("❌ Supabase hiba:", matchError);
+      throw matchError;
     }
+
+    if (!matches || matches.length === 0) {
+      console.log("ℹ️ Nincs meccs ebben az idősávban.");
+      return NextResponse.json({ message: "No match found." });
+    }
+
+    console.log(`⚽ Talált meccsek: ${matches.length} db.`);
 
     const {
       data: { users },
       error: usersError,
     } = await supabaseAdmin.auth.admin.listUsers();
-
-    if (usersError || !users) {
-      return NextResponse.json(
-        { error: "Cannot fetch users." },
-        { status: 500 },
-      );
-    }
+    if (usersError) throw usersError;
 
     let emailsSent = 0;
 
@@ -54,7 +59,6 @@ export async function GET(request: Request) {
         .eq("match_id", match.id);
 
       const predictedUserIds = predictions?.map((p) => p.user_id) || [];
-
       const { data: profiles } = await supabaseAdmin
         .from("profiles")
         .select("id, wants_reminders");
@@ -62,45 +66,38 @@ export async function GET(request: Request) {
       const missingUsers = users.filter(
         (user) => !predictedUserIds.includes(user.id),
       );
+      console.log(
+        `📩 Meccs: ${match.home_team} vs ${match.away_team}. Tippek hiányoznak: ${missingUsers.length} felhasználótól.`,
+      );
 
       for (const user of missingUsers) {
         if (!user.email) continue;
 
         const userProfile = profiles?.find((p) => p.id === user.id);
         if (userProfile && userProfile.wants_reminders === false) {
+          console.log(`⏩ ${user.email} kihagyva (nem kér értesítést).`);
           continue;
         }
 
+        console.log(`✉️ E-mail küldése ide: ${user.email}`);
         await resend.emails.send({
           from: "World Cup 2026 <onboarding@resend.dev>",
           to: user.email,
-          subject: `⏳ Reminder: ${match.home_team} vs ${match.away_team} is starting soon!`,
-          html: `
-            <div style="font-family: sans-serif; padding: 30px; background: #020817; color: #ffffff; border-radius: 12px; border: 1px solid #1e293b;">
-              <h2 style="color: #3b82f6; text-transform: uppercase; letter-spacing: 2px; font-size: 18px;">Soon starting! ⚽</h2>
-              <p style="font-size: 16px;">Heyy!</p>
-              <p style="font-size: 16px; color: #94a3b8;">
-                You have not tipped yet on the <strong>${match.home_team} vs ${match.away_team}</strong> match! 
-                Don't let others get ahead of you on the top list!
-              </p>
-              <a href="${appUrl}" style="display: inline-block; padding: 12px 24px; background: #3b82f6; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 15px;">Predict now!</a>
-            </div>
-          `,
+          subject: `⏳ Emlékeztető: ${match.home_team} vs ${match.away_team} hamarosan kezdődik!`,
+          html: `<h1>Soon starting!</h1><p>Tip now at ${appUrl}</p>`,
         });
 
         emailsSent++;
       }
     }
 
+    console.log(`✅ Kész! Összesen elküldve: ${emailsSent} e-mail.`);
     return NextResponse.json({
       success: true,
-      message: `${emailsSent} reminder email is successfully sent!`,
+      message: `Sent ${emailsSent} emails.`,
     });
   } catch (error) {
-    console.error("E-mail error while sending:", error);
-    return NextResponse.json(
-      { error: "Error while sending e-mail." },
-      { status: 500 },
-    );
+    console.error("❌ E-mail hiba:", error);
+    return NextResponse.json({ error: "Error." }, { status: 500 });
   }
 }
